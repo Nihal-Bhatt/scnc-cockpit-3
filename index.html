@@ -689,7 +689,8 @@ function handleFile(file) {
       });
       buildNetworkFromData(parsed);
     } catch (err) {
-      alert('Could not parse workbook: ' + err.message + '\n\nMake sure it is a valid .xlsx file.');
+      console.error('Workbook parse error:', err);
+      alert('Could not parse workbook data: ' + err.message);
     }
   };
   reader.readAsBinaryString(file);
@@ -698,15 +699,30 @@ function handleFile(file) {
 /* ---- FIELD HELPERS ---- */
 function getField(row, ...candidates) {
   for (const k of Object.keys(row)) {
-    const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const nk = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
     for (const c of candidates) {
-      const nc = c.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const nc = String(c).toLowerCase().replace(/[^a-z0-9]/g, '');
       if (nk === nc || nk.includes(nc)) {
         if (row[k] !== null && row[k] !== undefined && row[k] !== '') return row[k];
       }
     }
   }
   return null;
+}
+
+function normalizeText(v, fallback = '') {
+  if (v === null || v === undefined || v === '') return fallback;
+  return String(v).trim();
+}
+
+function normalizeSeverity(v) {
+  const sev = normalizeText(v, 'medium').toLowerCase();
+  if (['critical', 'high', 'medium', 'low', 'ok'].includes(sev)) return sev;
+  if (['1', 'sev1', 'p1'].includes(sev)) return 'critical';
+  if (['2', 'sev2', 'p2'].includes(sev)) return 'high';
+  if (['3', 'sev3', 'p3'].includes(sev)) return 'medium';
+  if (['4', 'sev4', 'p4'].includes(sev)) return 'low';
+  return 'medium';
 }
 
 function findTab(parsed, name) {
@@ -752,18 +768,21 @@ function buildNetworkFromData(parsed) {
   /* Plants */
   const plants = new Set();
   [inv, cap, fcast].forEach(tab =>
-    tab.forEach(r => { const p = getField(r, 'plant', 'Plant', 'Site'); if (p) plants.add(p); })
+    tab.forEach(r => { const p = getField(r, 'plant', 'Plant', 'Site'); if (p) plants.add(String(p)); })
   );
 
   /* Suppliers */
   const suppliers = new Set();
-  pos.forEach(r => { const s = getField(r, 'supplier_id', 'SupplierID', 'Supplier'); if (s) suppliers.add(s); });
+  pos.forEach(r => {
+    const s = getField(r, 'supplier_id', 'SupplierID', 'Supplier');
+    if (s) suppliers.add(String(s));
+  });
 
   /* Inventory map */
   const invMap = {};
   inv.forEach(r => {
-    const sku   = getField(r, 'sku_id', 'SKU', 'Material') || '';
-    const plant = getField(r, 'plant',  'Plant', 'Site')    || '';
+    const sku   = normalizeText(getField(r, 'sku_id', 'SKU', 'Material'), '');
+    const plant = normalizeText(getField(r, 'plant',  'Plant', 'Site'), '');
     const qty   = toNum(getField(r, 'qty', 'quantity', 'Qty'));
     const key   = `${sku}|${plant}`;
     invMap[key] = (invMap[key] || 0) + qty;
@@ -772,8 +791,8 @@ function buildNetworkFromData(parsed) {
   /* Policy map */
   const polMap = {};
   pol.forEach(r => {
-    const sku   = getField(r, 'sku_id', 'SKU', 'Material') || '';
-    const plant = getField(r, 'plant',  'Plant', 'Site')    || '';
+    const sku   = normalizeText(getField(r, 'sku_id', 'SKU', 'Material'), '');
+    const plant = normalizeText(getField(r, 'plant',  'Plant', 'Site'), '');
     const ss    = toNum(getField(r, 'safety_stock_qty', 'safety_stock', 'SafetyStock'));
     polMap[`${sku}|${plant}`] = ss;
   });
@@ -784,9 +803,9 @@ function buildNetworkFromData(parsed) {
   const lateByPlant = {};
   const latePOList  = [];
   pos.forEach(r => {
-    const plant    = getField(r, 'plant', 'Plant', 'Site') || '?';
-    const poId     = getField(r, 'po_id', 'PO_ID', 'POID') || '—';
-    const sku      = getField(r, 'sku_id', 'SKU', 'Material') || '—';
+    const plant    = normalizeText(getField(r, 'plant', 'Plant', 'Site'), '?');
+    const poId     = normalizeText(getField(r, 'po_id', 'PO_ID', 'POID'), '—');
+    const sku      = normalizeText(getField(r, 'sku_id', 'SKU', 'Material'), '—');
     const qty      = toNum(getField(r, 'qty', 'quantity', 'Qty'));
     const promised = getField(r, 'promised_arrival_date', 'ETA', 'Delivery Date');
     const updated  = getField(r, 'updated_arrival_date', 'Revised ETA');
@@ -806,7 +825,7 @@ function buildNetworkFromData(parsed) {
   /* Capacity overloads per plant */
   const overloadByPlant = {};
   cap.forEach(r => {
-    const plant = getField(r, 'plant', 'Plant', 'Site') || '?';
+    const plant = normalizeText(getField(r, 'plant', 'Plant', 'Site'), '?');
     const avail = toNum(getField(r, 'available_capacity', 'Capacity', 'Available Hours'));
     const load  = toNum(getField(r, 'planned_load', 'Required Hours', 'Planned Load'));
     if (avail > 0 && load > avail) {
@@ -828,9 +847,9 @@ function buildNetworkFromData(parsed) {
 
   /* External signals */
   const extEvents = ext.map(r => ({
-    type: getField(r, 'event_type', 'EventType') || 'disruption',
-    node: getField(r, 'affected_node_id', 'affected_node', 'AffectedNode') || '',
-    sev:  (getField(r, 'severity', 'Severity') || 'medium').toLowerCase()
+    type: normalizeText(getField(r, 'event_type', 'EventType'), 'disruption'),
+    node: normalizeText(getField(r, 'affected_node_id', 'affected_node', 'AffectedNode'), ''),
+    sev:  normalizeSeverity(getField(r, 'severity', 'Severity'))
   }));
 
   /* CM for lost-sales */
@@ -882,7 +901,7 @@ function buildNetworkFromData(parsed) {
   const dcSet = new Set();
   lanes.forEach(r => {
     const dest = getField(r, 'dest_plant', 'DestPlant', 'Destination');
-    if (dest && !plantList.includes(dest)) dcSet.add(dest);
+    if (dest && !plantList.includes(String(dest))) dcSet.add(String(dest));
   });
   if (dcSet.size === 0) {
     plantList.slice(0, 3).forEach((p, i) => dcSet.add('DC-' + (i + 1)));
@@ -892,7 +911,7 @@ function buildNetworkFromData(parsed) {
     nodes.push({
       id: 'dc_' + d, label: d, type: 'DC', risk: 'ok',
       tier: 2, idx: i, total: dcList.length,
-      details: { transfers: lanes.filter(r => getField(r, 'dest_plant', 'DestPlant', 'Destination') === d).length }
+      details: { transfers: lanes.filter(r => normalizeText(getField(r, 'dest_plant', 'DestPlant', 'Destination')) === d).length }
     });
   });
 
@@ -1014,35 +1033,28 @@ function buildNetworkFromData(parsed) {
 function renderDashboard() {
   const d = networkData;
 
-  /* ---- KPI CARDS ---- */
   const frColor = v => v >= 90 ? 'c-teal' : v >= 75 ? 'c-amber' : 'c-red';
-  const frVal   = v => v >= 90 ? 'green'  : v >= 75 ? 'amber'   : 'red';
 
-  // Fill rate plant
   const frpEl = document.getElementById('kpi-fr-plant');
   frpEl.textContent = d.frPlant + '%';
   frpEl.closest('.kpi-card').className = 'kpi-card ' + frColor(d.frPlant);
   document.getElementById('kpi-fr-plant-sub').textContent = `W+8: ${Math.round(d.frPlant-6)}% · W+12: ${Math.round(d.frPlant-12)}%`;
 
-  // Fill rate network
   const frnEl = document.getElementById('kpi-fr-net');
   frnEl.textContent = d.frNet + '%';
   frnEl.closest('.kpi-card').className = 'kpi-card ' + frColor(d.frNet);
   document.getElementById('kpi-fr-net-sub').textContent = `W+8: ${Math.round(d.frNet-5)}% · W+12: ${Math.round(d.frNet-10)}%`;
 
-  // Stockouts
   const soEl = document.getElementById('kpi-stockout');
   soEl.textContent = d.totalStockouts;
   soEl.closest('.kpi-card').className = 'kpi-card ' + (d.totalStockouts === 0 ? 'c-green' : d.totalStockouts < 5 ? 'c-amber' : 'c-red');
   document.getElementById('kpi-stockout-sub').textContent = 'SKU-Plant nodes';
 
-  // Late POs
   const lpEl = document.getElementById('kpi-latepo');
   lpEl.textContent = d.latePOCount;
   lpEl.closest('.kpi-card').className = 'kpi-card ' + (d.latePOCount === 0 ? 'c-green' : d.latePOCount < 4 ? 'c-amber' : 'c-red');
   document.getElementById('kpi-latepo-sub').textContent = 'Of open orders';
 
-  // Capacity overloads
   const olTotal = Object.values(d.overloadByPlant || {}).reduce((a,b)=>a+b,0);
   const olEl = document.getElementById('kpi-overload');
   if (olEl) {
@@ -1052,7 +1064,6 @@ function renderDashboard() {
   const exEl = document.getElementById('kpi-excess');
   if (exEl) { exEl.textContent = '0'; }
 
-  /* ---- FILL RATE BARS ---- */
   const bars = [
     { l: 'FG-Plant W+4',    p: d.frPlant },
     { l: 'FG-Plant W+8',    p: Math.round(d.frPlant - 6) },
@@ -1071,7 +1082,6 @@ function renderDashboard() {
     </div>`;
   }).join('');
 
-  /* ---- FINANCIAL IMPACT ---- */
   document.getElementById('fi-lost').textContent  = d.lostSales;
   document.getElementById('fi-lost').className    = 'cost-val ' + (d.lostSales === 'N/A' ? '' : 'red');
   document.getElementById('fi-exp').textContent   = d.expCost;
@@ -1134,14 +1144,12 @@ function drawNetwork() {
   if (!networkData) return;
   const d = networkData;
 
-  /* Positions */
   nodePositions = {};
   d.nodes.forEach(n => { nodePositions[n.id] = getNodePos(n, W, H); });
 
   const highlight = (selectedRisk != null) ? new Set(d.risks[selectedRisk].highlight) : null;
   const dim = highlight && highlight.size > 0;
 
-  /* Tier labels */
   const tiers = ['Suppliers', 'Plants', 'Distribution', 'Markets'];
   const tierX = [0.08, 0.31, 0.62, 0.88];
   ctx.font = '10px "Space Mono", monospace';
@@ -1149,7 +1157,6 @@ function drawNetwork() {
   ctx.textAlign = 'center';
   tiers.forEach((t, i) => ctx.fillText(t.toUpperCase(), W * tierX[i], 20));
 
-  /* Tier separators */
   ctx.strokeStyle = 'rgba(255,255,255,0.03)';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 8]);
@@ -1158,7 +1165,6 @@ function drawNetwork() {
   });
   ctx.setLineDash([]);
 
-  /* Edges */
   d.edges.forEach(e => {
     const from = nodePositions[e.from], to = nodePositions[e.to];
     if (!from || !to) return;
@@ -1184,7 +1190,6 @@ function drawNetwork() {
     }
   });
 
-  /* Recommendation overlays (teal rings) */
   if (recs.length > 0) {
     recs.forEach(rec => {
       const node = d.nodes.find(n => n.label === rec.node);
@@ -1205,7 +1210,6 @@ function drawNetwork() {
     });
   }
 
-  /* Nodes */
   d.nodes.forEach(n => {
     const pos  = nodePositions[n.id];
     const isHL = highlight && highlight.has(n.id);
@@ -1233,20 +1237,17 @@ function drawNetwork() {
     ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2); ctx.stroke();
     ctx.shadowBlur = 0;
 
-    /* Inner ring */
     const typeColor = { SUPPLIER: 'rgba(167,139,250,0.5)', PLANT: 'rgba(74,158,255,0.5)', DC: 'rgba(0,201,167,0.5)', MARKET: 'rgba(52,211,153,0.4)' };
     ctx.strokeStyle = typeColor[n.type] || 'transparent';
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(pos.x, pos.y, r - 6, 0, Math.PI * 2); ctx.stroke();
 
-    /* Type letter */
     const typeChar = { SUPPLIER: 'S', PLANT: 'P', DC: 'D', MARKET: 'M' };
     ctx.fillStyle = isDim ? 'rgba(122,135,153,0.4)' : 'rgba(200,210,230,0.9)';
     ctx.font = 'bold 10px "Space Mono"';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(typeChar[n.type] || '?', pos.x, pos.y);
 
-    /* Node label */
     ctx.font = '500 11px "DM Sans", sans-serif';
     ctx.fillStyle = isDim ? 'rgba(122,135,153,0.5)' : 'rgba(221,227,239,0.85)';
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -1255,7 +1256,6 @@ function drawNetwork() {
 
     ctx.globalAlpha = 1;
 
-    /* Financial mode: cost bubble */
     if (mode === 'financial' && n.type === 'PLANT') {
       const so = n.details.stockouts || 0;
       if (so > 0 && networkData.totalCM > 0) {
@@ -1346,7 +1346,6 @@ function importGPTRecs() {
     recs = parsed.recommendations || parsed.actions || parsed || [];
     if (!Array.isArray(recs)) recs = Object.values(recs);
     document.getElementById('gptJsonInput').value = '';
-    // Render rec cards
     document.getElementById('recCards').innerHTML = recs.map(r => `
       <div class="rec-card">
         <div class="rec-card-node">${r.node || '—'}</div>
