@@ -1,0 +1,2288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SCNC Cockpit — Full Screen Ops Hub</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root{
+  --bg:#090d13;
+  --bg2:#0e1420;
+  --bg3:#131a26;
+  --bg4:#1a2133;
+  --bg5:#1f2740;
+  --panel:rgba(14,20,32,.78);
+  --panel2:rgba(19,26,38,.92);
+  --border:rgba(255,255,255,0.07);
+  --border2:rgba(255,255,255,0.13);
+  --text:#dde3ef;
+  --text2:#95a3b8;
+  --text3:#607089;
+  --amber:#f0a500;
+  --amber2:#fbbf24;
+  --teal:#00c9a7;
+  --red:#f05252;
+  --red2:#fc8181;
+  --blue:#4a9eff;
+  --green:#34d399;
+  --purple:#a78bfa;
+  --mono:'Space Mono', monospace;
+  --sans:'DM Sans', sans-serif;
+  --shadow:0 20px 50px rgba(0,0,0,.25);
+}
+html,body{height:100%;}
+body{
+  background:
+    radial-gradient(circle at top left, rgba(74,158,255,.08), transparent 26%),
+    radial-gradient(circle at top right, rgba(0,201,167,.07), transparent 22%),
+    linear-gradient(180deg, #090d13 0%, #0b1118 100%);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:14px;
+  line-height:1.45;
+  overflow:hidden;
+}
+button,input,textarea,select{font:inherit;}
+button{cursor:pointer;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:999px;}
+
+.app{
+  height:100vh;
+  display:grid;
+  grid-template-rows:64px 1fr;
+}
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:0 18px;
+  background:rgba(14,20,32,.88);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(16px);
+  position:relative;
+  z-index:20;
+}
+.topbar-left,.topbar-center,.topbar-right{display:flex;align-items:center;gap:10px;min-width:0;}
+.topbar-center{flex:1;justify-content:center;}
+.logo{
+  font-family:var(--mono);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:1px;
+  white-space:nowrap;
+}
+.logo span{color:var(--amber);}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  border:1px solid var(--border2);
+  background:rgba(255,255,255,.03);
+  border-radius:999px;
+  padding:6px 11px;
+  color:var(--text2);
+  font-size:11px;
+  white-space:nowrap;
+}
+.pill strong{color:var(--text);font-weight:600;}
+.pill.live{border-color:rgba(0,201,167,.18);color:var(--teal);background:rgba(0,201,167,.07);}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 12px rgba(0,201,167,.55);}
+.nav-btn,.ghost-btn,.mode-btn,.chip-btn,.upload-btn,.primary-btn{
+  border:1px solid var(--border2);
+  background:rgba(255,255,255,.03);
+  color:var(--text2);
+  border-radius:10px;
+  padding:8px 12px;
+  transition:.18s ease;
+}
+.nav-btn{
+  font-family:var(--mono);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.8px;
+  padding:9px 14px;
+}
+.nav-btn:hover,.ghost-btn:hover,.mode-btn:hover,.chip-btn:hover,.upload-btn:hover{
+  border-color:rgba(240,165,0,.4);
+  color:var(--amber2);
+  background:rgba(240,165,0,.07);
+}
+.nav-btn.active,.mode-btn.active,.chip-btn.active{
+  color:var(--amber);
+  border-color:rgba(240,165,0,.42);
+  background:rgba(240,165,0,.09);
+}
+.primary-btn{
+  background:var(--amber);
+  color:#090d13;
+  border-color:var(--amber);
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:700;
+}
+.primary-btn:hover{background:var(--amber2);}
+.upload-btn{
+  position:relative;
+  overflow:hidden;
+  font-family:var(--mono);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.8px;
+}
+.upload-btn input{
+  position:absolute; inset:0; opacity:0; cursor:pointer;
+}
+.workspace{
+  position:relative;
+  overflow:hidden;
+}
+.view{
+  position:absolute;
+  inset:0;
+  display:none;
+  padding:18px;
+  overflow:auto;
+}
+.view.active{display:block;}
+.view-head{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  align-items:flex-start;
+  margin-bottom:16px;
+}
+.title-block h1{
+  font-size:22px;
+  font-weight:700;
+  letter-spacing:-.02em;
+  margin-bottom:4px;
+}
+.title-block p{
+  color:var(--text2);
+  font-size:13px;
+}
+.actions-wrap{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;}
+.mode-group,.chip-group{display:flex;gap:8px;flex-wrap:wrap;}
+.ghost-btn,.mode-btn,.chip-btn{
+  font-size:11px;
+  padding:8px 11px;
+}
+.grid{
+  display:grid;
+  gap:14px;
+}
+.glass{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:20px;
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(16px);
+}
+.panel{
+  padding:16px;
+}
+.panel-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:12px;
+}
+.kicker{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:var(--text3);
+}
+.stat{
+  font-family:var(--mono);
+  font-size:28px;
+  font-weight:700;
+}
+.stat-sub{
+  color:var(--text2);
+  font-size:11px;
+}
+.mini-tag{
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  color:var(--text2);
+  font-size:10px;
+  white-space:nowrap;
+}
+.metric-card{
+  padding:16px;
+  min-height:106px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+.metric-card .stat{font-size:30px;}
+.metric-card.good{background:linear-gradient(180deg, rgba(52,211,153,.08), rgba(52,211,153,.03)); border-color:rgba(52,211,153,.2);}
+.metric-card.warn{background:linear-gradient(180deg, rgba(240,165,0,.08), rgba(240,165,0,.03)); border-color:rgba(240,165,0,.2);}
+.metric-card.bad{background:linear-gradient(180deg, rgba(240,82,82,.08), rgba(240,82,82,.03)); border-color:rgba(240,82,82,.2);}
+.metric-card.cool{background:linear-gradient(180deg, rgba(74,158,255,.08), rgba(74,158,255,.03)); border-color:rgba(74,158,255,.2);}
+.metric-card.purple{background:linear-gradient(180deg, rgba(167,139,250,.08), rgba(167,139,250,.03)); border-color:rgba(167,139,250,.2);}
+.network-shell{
+  position:relative;
+  height:calc(100vh - 132px);
+  min-height:620px;
+  border-radius:24px;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(74,158,255,.06), transparent 22%),
+    radial-gradient(circle at 85% 10%, rgba(0,201,167,.05), transparent 20%),
+    linear-gradient(180deg, rgba(9,13,19,.95), rgba(14,20,32,.98));
+  border:1px solid var(--border);
+}
+.chart-fill{width:100%;height:100%;}
+.overlay{
+  position:absolute;
+  z-index:4;
+  background:rgba(14,20,32,.72);
+  border:1px solid var(--border);
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(18px);
+}
+.overlay-left{
+  top:16px; left:16px;
+  width:320px;
+  border-radius:20px;
+  padding:14px;
+}
+.overlay-right{
+  top:16px; right:16px;
+  width:360px;
+  max-height:calc(100% - 140px);
+  overflow:auto;
+  border-radius:20px;
+  padding:14px;
+}
+.overlay-bottom{
+  left:16px; right:16px; bottom:16px;
+  border-radius:20px;
+  padding:12px 14px;
+}
+.legend-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
+.legend-item{display:flex;align-items:center;gap:6px;color:var(--text2);font-size:11px;}
+.legend-dot{width:8px;height:8px;border-radius:50%;}
+.overlay-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;}
+.overlay-card{
+  padding:10px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:rgba(255,255,255,.025);
+}
+.overlay-card b{display:block;font-family:var(--mono);font-size:17px;margin-top:4px;}
+.focus-list{display:flex;flex-direction:column;gap:10px;}
+.focus-card{
+  padding:12px;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.025);
+}
+.focus-card.active{border-color:rgba(240,165,0,.45); background:rgba(240,165,0,.08);}
+.focus-top{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:6px;}
+.focus-title{font-size:13px;font-weight:600;}
+.focus-meta{font-size:11px;color:var(--text2);line-height:1.5;}
+.sev{
+  font-family:var(--mono);
+  font-size:9px;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid transparent;
+}
+.sev.critical{color:var(--red2);background:rgba(240,82,82,.1);border-color:rgba(240,82,82,.22);}
+.sev.high{color:var(--amber2);background:rgba(240,165,0,.1);border-color:rgba(240,165,0,.22);}
+.sev.medium{color:var(--blue);background:rgba(74,158,255,.1);border-color:rgba(74,158,255,.2);}
+.sev.low{color:var(--green);background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.2);}
+.rec-strip{display:flex;gap:10px;overflow:auto;padding-bottom:2px;}
+.rec-chip{
+  min-width:220px;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(0,201,167,.18);
+  background:rgba(0,201,167,.08);
+}
+.rec-chip h4{font-size:12px;margin-bottom:4px;}
+.rec-chip p{font-size:11px;color:var(--text2);}
+.rec-chip .mini{margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--teal);}
+.kpi-metrics{grid-template-columns:repeat(4,minmax(0,1fr));}
+.kpi-panels{grid-template-columns:1.25fr 1fr;}
+.chart-card{min-height:300px;}
+.chart-box{width:100%;height:260px;}
+.chart-box.tall{height:320px;}
+.risk-layout{grid-template-columns:1.1fr .9fr .95fr; align-items:start;}
+.risk-stack{display:flex;flex-direction:column;gap:12px;}
+.risk-card{
+  padding:14px;
+  border-radius:18px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.025);
+}
+.risk-card.active{border-color:rgba(240,165,0,.42); background:rgba(240,165,0,.07);}
+.risk-card h3{font-size:14px; margin:8px 0 6px;}
+.risk-card p{font-size:12px; color:var(--text2); margin-bottom:8px;}
+.risk-badges{display:flex;gap:8px;flex-wrap:wrap;}
+.small-badge{
+  font-size:10px;
+  color:var(--text2);
+  background:var(--bg4);
+  border:1px solid var(--border);
+  padding:4px 8px;
+  border-radius:999px;
+}
+.playbook-card{
+  padding:14px;
+  border-radius:18px;
+  border:1px solid rgba(0,201,167,.18);
+  background:rgba(0,201,167,.06);
+  margin-bottom:10px;
+}
+.playbook-card h4{font-size:13px; margin-bottom:6px;}
+.playbook-card p{font-size:12px; color:var(--text2);}
+.playbook-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+.ai-layout{grid-template-columns:1fr 1.05fr;}
+.textbox{
+  width:100%;
+  min-height:180px;
+  resize:vertical;
+  border-radius:18px;
+  border:1px solid var(--border2);
+  background:rgba(255,255,255,.02);
+  color:var(--text);
+  padding:14px;
+  outline:none;
+}
+.textbox:focus{border-color:rgba(0,201,167,.32);}
+.prompt-box{
+  padding:14px;
+  border-radius:18px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.02);
+  color:var(--text2);
+  font-size:12px;
+  line-height:1.65;
+}
+.list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.ai-card{
+  padding:14px;
+  border-radius:18px;
+  border:1px solid rgba(0,201,167,.18);
+  background:rgba(0,201,167,.06);
+}
+.ai-card strong{display:block;margin-bottom:4px;}
+.ai-card p{font-size:12px;color:var(--text2);}
+.split-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.placeholder{
+  height:100%;
+  min-height:280px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:10px;
+  color:var(--text3);
+  text-align:center;
+  padding:20px;
+}
+.placeholder svg{opacity:.8}
+.empty-note{
+  padding:12px 14px;
+  border:1px dashed var(--border2);
+  border-radius:16px;
+  color:var(--text2);
+  font-size:12px;
+  background:rgba(255,255,255,.015);
+}
+.info-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.info-box{
+  padding:12px;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.025);
+}
+.info-box .label{font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.8px;}
+.info-box .value{font-size:18px;font-family:var(--mono);margin-top:5px;}
+.footer-note{
+  color:var(--text3);
+  font-size:11px;
+  margin-top:10px;
+}
+@media (max-width: 1400px){
+  .kpi-metrics{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .risk-layout,.ai-layout,.kpi-panels{grid-template-columns:1fr;}
+  .overlay-right{width:320px;}
+}
+@media (max-width: 1100px){
+  .topbar{padding:10px 12px; height:auto; flex-wrap:wrap;}
+  .app{grid-template-rows:auto 1fr;}
+  .topbar-center{order:3; width:100%; justify-content:flex-start; overflow:auto;}
+  .topbar-right{flex-wrap:wrap; justify-content:flex-start;}
+  .view{padding:12px;}
+  .view-head{flex-direction:column;}
+  .network-shell{height:calc(100vh - 190px);}
+  .overlay-left,.overlay-right{position:static; width:auto; max-height:none; margin:12px;}
+  .overlay-bottom{left:12px; right:12px;}
+  .kpi-metrics{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="logo">SC<span>NC</span> NERVE CENTER</div>
+      <div class="pill"><span class="live-dot" style="opacity:.35"></span><strong id="snapPill">NO DATA</strong></div>
+      <div class="pill live" id="statusPill"><span class="live-dot"></span><span id="statusText">Awaiting workbook</span></div>
+    </div>
+    <div class="topbar-center">
+      <button class="nav-btn active" data-tab="network">Network Map</button>
+      <button class="nav-btn" data-tab="kpi">KPIs</button>
+      <button class="nav-btn" data-tab="risks">Risks & Recommendations</button>
+      <button class="nav-btn" data-tab="ai">AI Recommendations</button>
+    </div>
+    <div class="topbar-right">
+      <label class="upload-btn">Primary SCNC Workbook<input type="file" id="primaryInput" accept=".xlsx,.xls"></label>
+      <label class="upload-btn">Optional PO + GRN<input type="file" id="optionalInput" accept=".xlsx,.xls"></label>
+      <button class="ghost-btn" id="demoBtn">Load Demo</button>
+      <button class="primary-btn" id="openGptBtn">Open in ChatGPT →</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="view active" id="view-network">
+      <div class="view-head">
+        <div class="title-block">
+          <h1>Network flow cockpit</h1>
+          <p>Full-screen network map with linked recommendations, financial overlays, and shared cross-tab selection.</p>
+        </div>
+        <div class="actions-wrap">
+          <div class="mode-group">
+            <button class="mode-btn active" data-network-mode="flow">Operational Flow</button>
+            <button class="mode-btn" data-network-mode="financial">Financial Impact</button>
+            <button class="mode-btn" data-network-mode="recommendation">Recommendation Overlay</button>
+          </div>
+          <div class="chip-group">
+            <button class="chip-btn active" data-filter="all">All nodes</button>
+            <button class="chip-btn" data-filter="supplier">Suppliers</button>
+            <button class="chip-btn" data-filter="plant">Plants</button>
+            <button class="chip-btn" data-filter="dc">DCs</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="network-shell glass">
+        <div id="networkChart" class="chart-fill"></div>
+
+        <div class="overlay overlay-left">
+          <div class="panel-title">
+            <div>
+              <div class="kicker">Current focus</div>
+              <div style="font-size:16px;font-weight:700;margin-top:3px;" id="focusTitle">No selection</div>
+            </div>
+            <span class="mini-tag" id="focusTag">Network</span>
+          </div>
+
+          <div class="info-grid">
+            <div class="info-box">
+              <div class="label">Fill rate</div>
+              <div class="value" id="focusFillRate">—</div>
+            </div>
+            <div class="info-box">
+              <div class="label">Days coverage</div>
+              <div class="value" id="focusCoverage">—</div>
+            </div>
+            <div class="info-box">
+              <div class="label">Late POs</div>
+              <div class="value" id="focusLate">—</div>
+            </div>
+            <div class="info-box">
+              <div class="label">Cost at risk</div>
+              <div class="value" id="focusCost">—</div>
+            </div>
+          </div>
+
+          <div class="legend-row">
+            <div class="legend-item"><span class="legend-dot" style="background:#f05252"></span>Critical</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#f0a500"></span>High</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#4a9eff"></span>Medium</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#34d399"></span>Healthy</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#00c9a7"></span>AI action</div>
+          </div>
+
+          <div class="overlay-grid">
+            <div class="overlay-card">
+              <div class="kicker">Nodes</div>
+              <b id="netNodeCount">0</b>
+            </div>
+            <div class="overlay-card">
+              <div class="kicker">Flows</div>
+              <b id="netEdgeCount">0</b>
+            </div>
+            <div class="overlay-card">
+              <div class="kicker">Top risk</div>
+              <b id="topRiskLabel">—</b>
+            </div>
+            <div class="overlay-card">
+              <div class="kicker">AI actions</div>
+              <b id="overlayRecCount">0</b>
+            </div>
+          </div>
+          <div class="footer-note">Tip: click nodes, risk cards, or KPI bars to cross-highlight the whole workspace.</div>
+        </div>
+
+        <div class="overlay overlay-right">
+          <div class="panel-title">
+            <div>
+              <div class="kicker">Priority watchlist</div>
+              <div style="font-size:16px;font-weight:700;margin-top:3px;">Live risk focus</div>
+            </div>
+            <button class="ghost-btn" id="clearSelectionBtn" style="padding:7px 10px;">Clear focus</button>
+          </div>
+          <div class="focus-list" id="networkRiskList"></div>
+        </div>
+
+        <div class="overlay overlay-bottom">
+          <div class="panel-title" style="margin-bottom:8px;">
+            <div>
+              <div class="kicker">Recommended actions</div>
+              <div style="font-size:15px;font-weight:700;margin-top:3px;">What the network is telling you</div>
+            </div>
+            <span class="mini-tag" id="recommendationModeTag">Auto + AI</span>
+          </div>
+          <div class="rec-strip" id="networkRecStrip"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-kpi">
+      <div class="view-head">
+        <div class="title-block">
+          <h1>KPI command center</h1>
+          <p>Full-screen KPI dashboard across service, supply, supplier performance, and cost.</p>
+        </div>
+        <div class="actions-wrap">
+          <div class="pill"><strong id="kpiFocusLabel">Network view</strong></div>
+          <div class="pill"><span>Optional PO/GRN:</span><strong id="optionalLoadedLabel">Not loaded</strong></div>
+        </div>
+      </div>
+
+      <div class="grid kpi-metrics">
+        <div class="glass metric-card cool"><div class="kicker">OTIF</div><div class="stat" id="kpiOtif">—</div><div class="stat-sub">Overall inbound OTIF / proxy</div></div>
+        <div class="glass metric-card good"><div class="kicker">Availability</div><div class="stat" id="kpiAvailability">—</div><div class="stat-sub">Reverse of stockout exposure</div></div>
+        <div class="glass metric-card warn"><div class="kicker">Days of coverage</div><div class="stat" id="kpiCoverageDays">—</div><div class="stat-sub">Weighted average coverage</div></div>
+        <div class="glass metric-card purple"><div class="kicker">Supplier OTIF</div><div class="stat" id="kpiSupplierOtif">—</div><div class="stat-sub">From optional PO+GRN or proxy</div></div>
+        <div class="glass metric-card bad"><div class="kicker">Late PO rate</div><div class="stat" id="kpiLateRate">—</div><div class="stat-sub">Open lines delayed > 7 days</div></div>
+        <div class="glass metric-card cool"><div class="kicker">Capacity util.</div><div class="stat" id="kpiUtilization">—</div><div class="stat-sub">Planned load / available hours</div></div>
+        <div class="glass metric-card warn"><div class="kicker">Cost at risk</div><div class="stat" id="kpiCostRisk">—</div><div class="stat-sub">Lost sales + expedite + overtime</div></div>
+        <div class="glass metric-card good"><div class="kicker">Recommended uplift</div><div class="stat" id="kpiUplift">—</div><div class="stat-sub">Potential fill-rate improvement</div></div>
+      </div>
+
+      <div class="grid kpi-panels" style="margin-top:14px;">
+        <div class="glass panel chart-card">
+          <div class="panel-title"><div><div class="kicker">Supplier performance</div><div style="font-size:16px;font-weight:700;margin-top:4px;">OTIF by supplier</div></div><span class="mini-tag">Click bars to focus</span></div>
+          <div id="supplierOtifChart" class="chart-box tall"></div>
+        </div>
+        <div class="glass panel chart-card">
+          <div class="panel-title"><div><div class="kicker">Coverage</div><div style="font-size:16px;font-weight:700;margin-top:4px;">Days of coverage by node</div></div><span class="mini-tag">Plants + DCs</span></div>
+          <div id="coverageChart" class="chart-box tall"></div>
+        </div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:14px;">
+        <div class="glass panel chart-card">
+          <div class="panel-title"><div><div class="kicker">Risk mix</div><div style="font-size:16px;font-weight:700;margin-top:4px;">Node severity distribution</div></div></div>
+          <div id="severityChart" class="chart-box"></div>
+        </div>
+        <div class="glass panel chart-card">
+          <div class="panel-title"><div><div class="kicker">Delay profile</div><div style="font-size:16px;font-weight:700;margin-top:4px;">Inbound delay buckets</div></div></div>
+          <div id="delayBucketChart" class="chart-box"></div>
+        </div>
+        <div class="glass panel chart-card">
+          <div class="panel-title"><div><div class="kicker">Capacity</div><div style="font-size:16px;font-weight:700;margin-top:4px;">Utilization by workcenter bucket</div></div></div>
+          <div id="utilTrendChart" class="chart-box"></div>
+        </div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1.2fr .8fr; margin-top:14px;">
+        <div class="glass panel chart-card">
+          <div class="panel-title"><div><div class="kicker">Service and supply</div><div style="font-size:16px;font-weight:700;margin-top:4px;">Fill-rate and risk driver comparison</div></div></div>
+          <div id="driverChart" class="chart-box tall"></div>
+        </div>
+        <div class="glass panel">
+          <div class="panel-title"><div><div class="kicker">Topline notes</div><div style="font-size:16px;font-weight:700;margin-top:4px;">What stands out</div></div></div>
+          <div class="list" id="kpiNotes"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-risks">
+      <div class="view-head">
+        <div class="title-block">
+          <h1>Risks & recommendations</h1>
+          <p>Large-screen action room for top risks, impact matrix, recommended playbooks, and linked operational focus.</p>
+        </div>
+        <div class="actions-wrap">
+          <div class="pill"><span>Selected risk:</span><strong id="selectedRiskLabel">None</strong></div>
+        </div>
+      </div>
+
+      <div class="grid risk-layout">
+        <div class="glass panel">
+          <div class="panel-title"><div><div class="kicker">Top risks</div><div style="font-size:16px;font-weight:700;margin-top:4px;">Ranked by impact</div></div></div>
+          <div class="risk-stack" id="riskList"></div>
+        </div>
+
+        <div class="glass panel">
+          <div class="panel-title"><div><div class="kicker">Impact matrix</div><div style="font-size:16px;font-weight:700;margin-top:4px;">Probability vs business impact</div></div><span class="mini-tag">Click bubble to focus</span></div>
+          <div id="riskMatrixChart" class="chart-box tall"></div>
+          <div class="empty-note" id="riskNarrative" style="margin-top:10px;">Select a risk to see the recommended action chain and KPI impact.</div>
+        </div>
+
+        <div class="glass panel">
+          <div class="panel-title"><div><div class="kicker">Playbook</div><div style="font-size:16px;font-weight:700;margin-top:4px;">Recommended actions</div></div></div>
+          <div id="playbookList"></div>
+        </div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1fr 1fr; margin-top:14px;">
+        <div class="glass panel">
+          <div class="panel-title"><div><div class="kicker">Supplier watch</div><div style="font-size:16px;font-weight:700;margin-top:4px;">Worst suppliers by delay / OTIF</div></div></div>
+          <div id="supplierWatchChart" class="chart-box"></div>
+        </div>
+        <div class="glass panel">
+          <div class="panel-title"><div><div class="kicker">Scenario impact</div><div style="font-size:16px;font-weight:700;margin-top:4px;">Before vs recommended outcome</div></div></div>
+          <div id="scenarioChart" class="chart-box"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-ai">
+      <div class="view-head">
+        <div class="title-block">
+          <h1>AI recommendation workspace</h1>
+          <p>Paste recommendations from the SCNC agent, validate them, and project them onto the network and KPI views.</p>
+        </div>
+        <div class="actions-wrap">
+          <div class="pill"><span>Matched actions:</span><strong id="aiMatchCount">0</strong></div>
+          <div class="pill"><span>Unmatched:</span><strong id="aiUnmatchCount">0</strong></div>
+        </div>
+      </div>
+
+      <div class="grid ai-layout">
+        <div class="glass panel">
+          <div class="panel-title"><div><div class="kicker">Prompt helper</div><div style="font-size:16px;font-weight:700;margin-top:4px;">SCNC agent handoff</div></div></div>
+          <div class="prompt-box" id="promptBox">Use your SCNC agent to diagnose risks, then return JSON with fields like node, action, fill_rate_delta, cost_delta, confidence, from_node, and to_node. Matching node labels should follow the workbook entity names.</div>
+          <div class="split-row" style="margin-top:12px;">
+            <button class="primary-btn" id="aiOpenBtn">Open SCNC Agent in ChatGPT →</button>
+            <button class="ghost-btn" id="copyPromptBtn">Copy prompt</button>
+          </div>
+          <div style="margin-top:14px;">
+            <div class="panel-title" style="margin-bottom:8px;"><div><div class="kicker">JSON input</div><div style="font-size:15px;font-weight:700;margin-top:4px;">Paste recommendations</div></div></div>
+            <textarea id="aiJsonInput" class="textbox" placeholder='{"recommendations":[{"node":"PLANT_A","action":"Expedite PO_0004","fill_rate_delta":"+2.8%","cost_delta":"$7,600","confidence":"0.82","from_node":"SUP_06","to_node":"PLANT_A"}]}'></textarea>
+          </div>
+          <div class="split-row" style="margin-top:12px;">
+            <button class="primary-btn" id="applyAiBtn">Apply recommendations</button>
+            <button class="ghost-btn" id="clearAiBtn">Clear AI actions</button>
+          </div>
+          <div class="footer-note">All tabs update from the same state, so applied recommendations instantly appear on the network, KPI, and risk tabs.</div>
+        </div>
+
+        <div class="grid" style="gap:14px;">
+          <div class="glass panel">
+            <div class="panel-title"><div><div class="kicker">Validation</div><div style="font-size:16px;font-weight:700;margin-top:4px;">Recommendation summary</div></div></div>
+            <div class="split-row">
+              <div class="info-box"><div class="label">Potential fill-rate uplift</div><div class="value" id="aiUpliftTotal">—</div></div>
+              <div class="info-box"><div class="label">Potential cost delta</div><div class="value" id="aiCostTotal">—</div></div>
+            </div>
+            <div class="split-row" style="margin-top:10px;">
+              <div>
+                <div class="kicker" style="margin-bottom:8px;">Matched</div>
+                <div class="list" id="matchedList"></div>
+              </div>
+              <div>
+                <div class="kicker" style="margin-bottom:8px;">Unmatched</div>
+                <div class="list" id="unmatchedList"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass panel">
+            <div class="panel-title"><div><div class="kicker">Applied actions</div><div style="font-size:16px;font-weight:700;margin-top:4px;">Current AI plan</div></div></div>
+            <div class="list" id="aiCardList"></div>
+          </div>
+
+          <div class="glass panel chart-card">
+            <div class="panel-title"><div><div class="kicker">Scenario projection</div><div style="font-size:16px;font-weight:700;margin-top:4px;">Expected impact by action</div></div></div>
+            <div id="aiScenarioChart" class="chart-box"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const GPT_URL = 'https://chatgpt.com/g/g-69cd4b162b3881919c777109ba58b4bc-scnc-supply-risk-mitigation-3-0';
+
+const app = {
+  currentTab: 'network',
+  networkMode: 'flow',
+  entityFilter: 'all',
+  charts: {},
+  rawPrimary: null,
+  rawOptional: null,
+  model: null,
+  aiRecs: [],
+  matchedRecs: [],
+  unmatchedRecs: [],
+  selectedRiskId: null,
+  selectedNodeId: null,
+  focusSupplier: null
+};
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => [...document.querySelectorAll(sel)];
+
+function toNum(v){
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : 0;
+}
+function normalizeText(v, fallback=''){
+  if(v === null || v === undefined || v === '') return fallback;
+  return String(v).trim();
+}
+function normalizeKey(v){
+  return normalizeText(v).toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+function fmtPct(v, digits=0){
+  if(!Number.isFinite(v)) return '—';
+  return (v*100).toFixed(digits) + '%';
+}
+function fmtPctWhole(v){
+  if(!Number.isFinite(v)) return '—';
+  return Math.round(v) + '%';
+}
+function fmtNum(v, digits=0){
+  if(!Number.isFinite(v)) return '—';
+  return Number(v).toLocaleString(undefined,{maximumFractionDigits:digits, minimumFractionDigits:digits});
+}
+function fmtCurrency(v){
+  if(!Number.isFinite(v)) return '—';
+  if(Math.abs(v) >= 1000000) return '$' + (v/1000000).toFixed(2) + 'M';
+  if(Math.abs(v) >= 1000) return '$' + (v/1000).toFixed(1) + 'K';
+  return '$' + Math.round(v).toLocaleString();
+}
+function pctStringToNumber(v){
+  if(v === null || v === undefined) return 0;
+  if(typeof v === 'number') return v;
+  const m = String(v).match(/-?\d+(\.\d+)?/);
+  return m ? parseFloat(m[0]) : 0;
+}
+function currencyStringToNumber(v){
+  if(v === null || v === undefined) return 0;
+  if(typeof v === 'number') return v;
+  const m = String(v).replace(/,/g,'').match(/-?\d+(\.\d+)?/);
+  return m ? parseFloat(m[0]) : 0;
+}
+function dateVal(v){
+  if(v === null || v === undefined || v === '') return null;
+  const d = v instanceof Date ? v : new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+function diffDays(a,b){
+  const da = dateVal(a), db = dateVal(b);
+  if(!da || !db) return null;
+  return Math.round((da - db) / 86400000);
+}
+function safeArray(v){ return Array.isArray(v) ? v : []; }
+function riskLabel(score){
+  if(score >= 65) return 'critical';
+  if(score >= 38) return 'high';
+  if(score >= 18) return 'medium';
+  return 'low';
+}
+function riskColor(level){
+  return level === 'critical' ? '#f05252' : level === 'high' ? '#f0a500' : level === 'medium' ? '#4a9eff' : '#34d399';
+}
+function severityFromNumeric(v){
+  const n = toNum(v);
+  if(n >= 5) return 'critical';
+  if(n >= 4) return 'high';
+  if(n >= 2) return 'medium';
+  return 'low';
+}
+function getField(row, ...candidates){
+  const keys = Object.keys(row || {});
+  for(const k of keys){
+    const nk = normalizeKey(k);
+    for(const c of candidates){
+      const nc = normalizeKey(c);
+      if(nk === nc || nk.includes(nc)){
+        const val = row[k];
+        if(val !== null && val !== undefined && val !== '') return val;
+      }
+    }
+  }
+  return null;
+}
+function findSheet(sheets, name){
+  const synonyms = {
+    'SKU Master':['skumaster','sku_master','skus','itemmaster'],
+    'BOM':['bom','billofmaterials'],
+    'Inventory':['inventory','stock','inv'],
+    'Purchase Orders':['purchaseorders','purchase_orders','pos','po'],
+    'Production Orders':['productionorders','production_orders','mos','mo'],
+    'Forecast':['forecast','demand'],
+    'Inter Site Logistics':['intersitelogistics','logistics','lanes'],
+    'Capacity':['capacity','cap'],
+    'Inventory Policy':['inventorypolicy','inventory_policy','policy'],
+    'External Signals':['externalsignals','external_signals','disruptions'],
+    'MRP_Tidy':['mrp_tidy','mrptidy','mrp'],
+    'Run_Metadata':['run_metadata','runmetadata','metadata'],
+    'Run_Preferences':['run_preferences','runpreferences','preferences'],
+    'PO_Data':['podata','po_data'],
+    'GRN_Data':['grndata','grn_data']
+  };
+  const want = synonyms[name] || [normalizeKey(name)];
+  for(const key of Object.keys(sheets || {})){
+    const nk = normalizeKey(key);
+    if(want.some(w => nk === w || nk.includes(w))) return safeArray(sheets[key]);
+  }
+  return [];
+}
+function workbookToJson(workbook){
+  const out = {};
+  workbook.SheetNames.forEach(name => {
+    out[name] = XLSX.utils.sheet_to_json(workbook.Sheets[name], { defval: null, raw: false });
+  });
+  return out;
+}
+async function readWorkbook(file){
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+  return workbookToJson(wb);
+}
+function grouped(arr, keyFn){
+  const m = new Map();
+  arr.forEach(item => {
+    const key = keyFn(item);
+    if(!m.has(key)) m.set(key, []);
+    m.get(key).push(item);
+  });
+  return m;
+}
+function sumBy(arr, fn){
+  return arr.reduce((s,x) => s + fn(x), 0);
+}
+function avgBy(arr, fn){
+  return arr.length ? sumBy(arr, fn)/arr.length : 0;
+}
+function uniq(arr){
+  return [...new Set(arr.filter(Boolean))];
+}
+function sortAlpha(arr){
+  return [...arr].sort((a,b) => String(a).localeCompare(String(b)));
+}
+function allNodesById(model){
+  return new Map(model.nodes.map(n => [n.id, n]));
+}
+function currentFocusNode(model){
+  if(!model) return null;
+  if(app.selectedNodeId) return model.nodes.find(n => n.id === app.selectedNodeId) || null;
+  if(app.selectedRiskId){
+    const risk = model.risks.find(r => r.id === app.selectedRiskId);
+    if(risk && risk.highlightIds.length) return model.nodes.find(n => n.id === risk.highlightIds[0]) || null;
+  }
+  return null;
+}
+
+function computeSupplierMetrics(primaryPO, optionalSheets){
+  const today = new Date();
+  const fallbackRows = primaryPO.map(r => {
+    const promised = dateVal(getField(r,'promised_arrival_date','ETA','Delivery Date'));
+    const updated = dateVal(getField(r,'updated_arrival_date','Revised ETA'));
+    const supplier = normalizeText(getField(r,'supplier_id','supplier','SupplierID'), 'Unknown');
+    const qty = toNum(getField(r,'qty','quantity','Qty'));
+    const status = normalizeText(getField(r,'status','Status'), 'open').toLowerCase();
+    const delay = promised && updated ? Math.max(0, diffDays(updated, promised)) : (promised ? Math.max(0, diffDays(today, promised)) : 0);
+    const onTime = promised && updated ? updated <= promised : promised ? promised >= today : false;
+    return {
+      supplier_id: supplier,
+      plant: normalizeText(getField(r,'plant','Plant','Site'), ''),
+      sku_id: normalizeText(getField(r,'sku_id','SKU','Material'), ''),
+      ordered_qty: qty,
+      received_qty: status === 'closed' ? qty : 0,
+      on_time: onTime,
+      in_full: status === 'closed',
+      otif: onTime && status === 'closed',
+      delay_days: delay,
+      open_due: status !== 'closed' && promised && promised < today ? 1 : 0,
+      spend: qty * toNum(getField(r,'unit_purchase_cost','Unit Cost','unit_purchase_cost'))
+    };
+  });
+
+  if(!optionalSheets){
+    return finalizeSupplierMetrics(fallbackRows);
+  }
+
+  const po = findSheet(optionalSheets, 'PO_Data');
+  const grn = findSheet(optionalSheets, 'GRN_Data');
+  if(!po.length || !grn.length){
+    return finalizeSupplierMetrics(fallbackRows);
+  }
+
+  const grnMap = new Map();
+  grn.forEach(r => {
+    const key = normalizeText(getField(r,'po_id')) + '|' + normalizeText(getField(r,'po_line_id'));
+    const received = toNum(getField(r,'received_qty'));
+    const grnDate = dateVal(getField(r,'grn_posting_date'));
+    if(!grnMap.has(key)){
+      grnMap.set(key, {
+        received_qty: 0,
+        last_grn: grnDate,
+        complete: normalizeText(getField(r,'delivery_complete_flag'),'N').toUpperCase() === 'Y'
+      });
+    }
+    const row = grnMap.get(key);
+    row.received_qty += received;
+    if(grnDate && (!row.last_grn || grnDate > row.last_grn)) row.last_grn = grnDate;
+    if(normalizeText(getField(r,'delivery_complete_flag'),'N').toUpperCase() === 'Y') row.complete = true;
+  });
+
+  const rows = po.map(r => {
+    const key = normalizeText(getField(r,'po_id')) + '|' + normalizeText(getField(r,'po_line_id'));
+    const g = grnMap.get(key) || { received_qty: 0, last_grn: null, complete: false };
+    const promised = dateVal(getField(r,'promised_delivery_date'));
+    const orderedQty = toNum(getField(r,'ordered_qty'));
+    const last = g.last_grn;
+    const inFull = g.received_qty >= orderedQty && orderedQty > 0;
+    const onTime = promised && last ? last <= promised : false;
+    const delay = promised ? Math.max(0, diffDays(last || today, promised)) : 0;
+    return {
+      supplier_id: normalizeText(getField(r,'supplier_id'), 'Unknown'),
+      plant: normalizeText(getField(r,'plant'), ''),
+      sku_id: normalizeText(getField(r,'sku_id'), ''),
+      ordered_qty: orderedQty,
+      received_qty: g.received_qty,
+      on_time: onTime,
+      in_full: inFull,
+      otif: onTime && inFull,
+      delay_days: delay,
+      open_due: (!g.complete && promised && promised < today) ? 1 : 0,
+      spend: orderedQty * toNum(getField(r,'unit_purchase_cost'))
+    };
+  });
+
+  return finalizeSupplierMetrics(rows);
+}
+function finalizeSupplierMetrics(rows){
+  const bySup = grouped(rows, r => r.supplier_id);
+  const suppliers = [...bySup.entries()].map(([supplier, arr]) => ({
+    supplier,
+    otif: avgBy(arr, r => r.otif ? 1 : 0),
+    onTime: avgBy(arr, r => r.on_time ? 1 : 0),
+    inFull: avgBy(arr, r => r.in_full ? 1 : 0),
+    avgDelay: avgBy(arr, r => r.delay_days || 0),
+    openDue: sumBy(arr, r => r.open_due || 0),
+    spend: sumBy(arr, r => r.spend || 0),
+    lines: arr.length,
+    receivedQty: sumBy(arr, r => r.received_qty || 0),
+    orderedQty: sumBy(arr, r => r.ordered_qty || 0),
+  })).sort((a,b) => (a.otif - b.otif) || (b.avgDelay - a.avgDelay));
+  return {
+    rows,
+    suppliers,
+    overallOtif: avgBy(rows, r => r.otif ? 1 : 0),
+    overallInFull: avgBy(rows, r => r.in_full ? 1 : 0),
+    overallOnTime: avgBy(rows, r => r.on_time ? 1 : 0),
+    overallDelay: avgBy(rows, r => r.delay_days || 0),
+    openDue: sumBy(rows, r => r.open_due || 0)
+  };
+}
+
+function computeModel(primarySheets, optionalSheets){
+  if(!primarySheets) return null;
+  const skus = findSheet(primarySheets,'SKU Master');
+  const bom = findSheet(primarySheets,'BOM');
+  const inv = findSheet(primarySheets,'Inventory');
+  const po = findSheet(primarySheets,'Purchase Orders');
+  const prod = findSheet(primarySheets,'Production Orders');
+  const forecast = findSheet(primarySheets,'Forecast');
+  const lanes = findSheet(primarySheets,'Inter Site Logistics');
+  const capacity = findSheet(primarySheets,'Capacity');
+  const policy = findSheet(primarySheets,'Inventory Policy');
+  const ext = findSheet(primarySheets,'External Signals');
+  const mrp = findSheet(primarySheets,'MRP_Tidy');
+  const meta = findSheet(primarySheets,'Run_Metadata');
+  const prefs = findSheet(primarySheets,'Run_Preferences');
+
+  const supplierMetrics = computeSupplierMetrics(po, optionalSheets && Object.keys(optionalSheets).length ? optionalSheets : null);
+
+  const latestMeta = meta.length ? meta[meta.length - 1] : {};
+  const latestPref = prefs.length ? prefs[prefs.length - 1] : {};
+  const snapshotId = normalizeText(getField(latestMeta,'snapshot_id','SnapshotID'),'W-CURRENT');
+  const scenarioName = normalizeText(getField(latestMeta,'scenario_name','scenario'),'baseline');
+  const preferenceMode = normalizeText(getField(latestPref,'mode'),'Balanced');
+
+  const skuMap = new Map();
+  skus.forEach(r => skuMap.set(normalizeText(getField(r,'sku_id','SKU')), r));
+
+  const invRows = inv.map(r => {
+    const node = normalizeText(getField(r,'plant','Plant','Site'), '');
+    const sku = normalizeText(getField(r,'sku_id','SKU','Material'),'');
+    const qty = toNum(getField(r,'qty','quantity','Qty'));
+    return { node, sku, qty, status: normalizeText(getField(r,'status'),'available') };
+  });
+
+  const policyRows = policy.map(r => ({
+    node: normalizeText(getField(r,'plant','Plant','Site'),''),
+    sku: normalizeText(getField(r,'sku_id','SKU','Material'),''),
+    safety: toNum(getField(r,'safety_stock_qty','safety_stock','SafetyStock')),
+    reorder: toNum(getField(r,'reorder_point_qty','reorder_point')),
+    maxTarget: toNum(getField(r,'max_target_inventory_qty','max_target_inventory'))
+  }));
+  const policyMap = new Map(policyRows.map(r => [r.sku + '|' + r.node, r]));
+
+  const invAggByNode = {};
+  invRows.forEach(r => { invAggByNode[r.node] = (invAggByNode[r.node] || 0) + r.qty; });
+
+  const forecastRows = forecast.map(r => ({
+    sku: normalizeText(getField(r,'sku_id','SKU','Material'),''),
+    node: normalizeText(getField(r,'demand_node','DemandNode','node'),''),
+    qty: toNum(getField(r,'forecast_qty','ForecastQty')),
+    bucket: normalizeText(getField(r,'bucket_type'),''),
+    priority: normalizeText(getField(r,'priority_class'),'X')
+  }));
+  const demandByNode = {};
+  const demandByPriority = {};
+  const dailyDemandByNode = {};
+  forecastRows.forEach(r => {
+    demandByNode[r.node] = (demandByNode[r.node] || 0) + r.qty;
+    demandByPriority[r.priority] = (demandByPriority[r.priority] || 0) + r.qty;
+    dailyDemandByNode[r.node] = (dailyDemandByNode[r.node] || 0) + (r.qty / 30);
+  });
+
+  const latePORows = po.map(r => {
+    const promised = dateVal(getField(r,'promised_arrival_date','ETA','Delivery Date'));
+    const updated = dateVal(getField(r,'updated_arrival_date','Revised ETA'));
+    const today = new Date();
+    const delayDays = promised && updated ? Math.max(0, diffDays(updated, promised)) : (promised ? Math.max(0, diffDays(today, promised)) : 0);
+    return {
+      poId: normalizeText(getField(r,'po_id','PO_ID','POID'),'—'),
+      supplier: normalizeText(getField(r,'supplier_id','SupplierID','Supplier'),'Unknown'),
+      plant: normalizeText(getField(r,'plant','Plant','Site'),'Unknown'),
+      sku: normalizeText(getField(r,'sku_id','SKU','Material'),''),
+      qty: toNum(getField(r,'qty','quantity','Qty')),
+      cost: toNum(getField(r,'total_material_cost','material_cost')) || (toNum(getField(r,'unit_purchase_cost')) * toNum(getField(r,'qty','quantity','Qty'))),
+      expediteAllowed: normalizeText(getField(r,'expedite_allowed'),'N').toUpperCase() === 'Y',
+      status: normalizeText(getField(r,'status'),'open').toLowerCase(),
+      delayDays
+    };
+  });
+  const latePOOnly = latePORows.filter(r => r.delayDays > 7);
+  const lateByPlant = {};
+  const lateBySupplier = {};
+  latePOOnly.forEach(r => {
+    lateByPlant[r.plant] = (lateByPlant[r.plant] || 0) + 1;
+    lateBySupplier[r.supplier] = (lateBySupplier[r.supplier] || 0) + 1;
+  });
+
+  const capacityRows = capacity.map(r => ({
+    plant: normalizeText(getField(r,'plant','Plant','Site'),''),
+    workcenter: normalizeText(getField(r,'workcenter','Workcenter'),''),
+    bucketDate: normalizeText(getField(r,'time_bucket_date','bucket_date'),''),
+    avail: toNum(getField(r,'available_capacity_hours','available_capacity','Capacity')),
+    load: toNum(getField(r,'planned_load_hours','planned_load','Required Hours')),
+    util: toNum(getField(r,'utilization')),
+    overtimeCost: toNum(getField(r,'overtime_cost_per_hour')),
+    maxOtPct: toNum(getField(r,'max_overtime_pct'))
+  }));
+  const overloadRows = capacityRows.filter(r => (r.util > 1) || (r.avail > 0 && r.load > r.avail));
+  const overloadByPlant = {};
+  overloadRows.forEach(r => { overloadByPlant[r.plant] = (overloadByPlant[r.plant] || 0) + 1; });
+  const avgUtil = avgBy(capacityRows, r => r.util || (r.avail ? r.load / r.avail : 0));
+
+  const mrpRows = mrp.map(r => ({
+    sku: normalizeText(getField(r,'sku_id','SKU','Material'),''),
+    plant: normalizeText(getField(r,'plant','Plant','Site'),''),
+    projected: toNum(getField(r,'projected_on_hand')),
+    gross: toNum(getField(r,'gross_requirements')),
+    scheduled: toNum(getField(r,'scheduled_receipts')),
+    exception: normalizeText(getField(r,'exception_message'),'')
+  }));
+  const stockoutRows = mrpRows.filter(r => normalizeText(r.exception).toUpperCase().includes('STOCKOUT') || r.projected < 0);
+  const stockoutByPlant = {};
+  stockoutRows.forEach(r => { stockoutByPlant[r.plant] = (stockoutByPlant[r.plant] || 0) + 1; });
+
+  const externalRows = ext.map(r => ({
+    eventId: normalizeText(getField(r,'event_id'),''),
+    type: normalizeText(getField(r,'event_type','EventType'),'disruption'),
+    startDate: normalizeText(getField(r,'start_date'),''),
+    endDate: normalizeText(getField(r,'end_date'),''),
+    severity: severityFromNumeric(getField(r,'severity_1_5','severity','Severity')),
+    severityNum: toNum(getField(r,'severity_1_5','severity','Severity')),
+    expectedDelay: toNum(getField(r,'expected_delay_days')),
+    nodeType: normalizeText(getField(r,'affected_node_type'),'network'),
+    nodeId: normalizeText(getField(r,'affected_node_id','AffectedNode'),''),
+    probability: toNum(getField(r,'probability'))
+  }));
+  const extByNode = {};
+  externalRows.forEach(r => { if(r.nodeId) extByNode[r.nodeId] = (extByNode[r.nodeId] || 0) + (r.severityNum || 1); });
+
+  const plants = uniq([
+    ...po.map(r => normalizeText(getField(r,'plant','Plant','Site'))),
+    ...prod.map(r => normalizeText(getField(r,'plant','Plant','Site'))),
+    ...capacity.map(r => normalizeText(getField(r,'plant','Plant','Site'))),
+    ...mrp.map(r => normalizeText(getField(r,'plant','Plant','Site')))
+  ]).filter(x => x && !/^DC/i.test(x));
+
+  const dcs = uniq([
+    ...invRows.filter(r => /^DC/i.test(r.node)).map(r => r.node),
+    ...forecastRows.map(r => r.node),
+    ...lanes.map(r => normalizeText(getField(r,'dest_plant','dest_plant','Destination','destPlant')))
+  ]).filter(x => x && /^DC/i.test(x));
+
+  const suppliers = uniq([
+    ...po.map(r => normalizeText(getField(r,'supplier_id','SupplierID','Supplier')))
+  ]).filter(Boolean);
+
+  const markets = sortAlpha(Object.keys(demandByPriority)).filter(Boolean).map(k => 'Priority-' + k);
+
+  const coverageByNode = {};
+  sortAlpha([...new Set([...Object.keys(invAggByNode), ...Object.keys(dailyDemandByNode)])]).forEach(node => {
+    const invQty = invAggByNode[node] || 0;
+    const daily = dailyDemandByNode[node] || 0;
+    coverageByNode[node] = daily > 0 ? invQty / daily : null;
+  });
+
+  const safetyBreaches = policyRows.reduce((acc,r) => {
+    const invKey = r.node;
+    const match = invRows.find(i => i.node === r.node && i.sku === r.sku);
+    const qty = match ? match.qty : 0;
+    return acc + ((r.safety > 0 && qty < r.safety) ? 1 : 0);
+  }, 0);
+
+  const fillRateProxy = Math.max(55, 100 - stockoutRows.length * 2.1 - overloadRows.length * 1.4 - latePOOnly.length * 0.8);
+  const availability = policyRows.length ? (1 - safetyBreaches / policyRows.length) : (1 - stockoutRows.length / Math.max(1, mrpRows.length));
+  const daysCoverage = avgBy(Object.values(coverageByNode).filter(v => Number.isFinite(v)), v => v);
+  const latePoRate = latePOOnly.length / Math.max(1, po.length);
+  const contributionMargin = sumBy(skus, r => toNum(getField(r,'contribution_margin_per_unit','Contribution Margin','CM/unit')));
+  const lostSalesRisk = stockoutRows.length ? stockoutRows.length * (contributionMargin || 80) * 4 : 0;
+  const expediteCost = sumBy(latePOOnly.filter(r => r.expediteAllowed), r => r.qty * 0.75);
+  const overtimeCost = sumBy(overloadRows, r => Math.max(0, r.load - r.avail) * (r.overtimeCost || 40));
+  const totalCostRisk = lostSalesRisk + expediteCost + overtimeCost;
+  const supplierOtif = supplierMetrics.overallOtif;
+  const otif = optionalSheets ? supplierMetrics.overallOtif : Math.max(0, 1 - latePoRate * 1.15);
+  const potentialAiUplift = app.aiRecs.reduce((s,r) => s + pctStringToNumber(r.fill_rate_delta || 0), 0);
+
+  const links = [];
+  const linkKey = new Set();
+  function pushLink(from,to,value,label,risk='low'){
+    if(!from || !to || from===to) return;
+    const key = from + '|' + to;
+    if(linkKey.has(key)){
+      const existing = links.find(l => l.source === from && l.target === to);
+      if(existing){ existing.value += value; existing.weight += 1; existing.riskScore += risk === 'critical' ? 3 : risk === 'high' ? 2 : risk === 'medium' ? 1 : 0; }
+      return;
+    }
+    linkKey.add(key);
+    links.push({ source: from, target: to, value, weight:1, label, riskScore: risk === 'critical' ? 3 : risk === 'high' ? 2 : risk === 'medium' ? 1 : 0 });
+  }
+
+  latePORows.forEach(r => {
+    const supplierId = 'sup_' + r.supplier;
+    const plantId = 'plt_' + r.plant;
+    pushLink(supplierId, plantId, Math.max(1, r.qty), r.poId, r.delayDays > 14 ? 'high' : 'low');
+  });
+
+  const defaultPlantBySku = {};
+  skus.forEach(r => {
+    const sku = normalizeText(getField(r,'sku_id','SKU'));
+    const plant = normalizeText(getField(r,'default_plant','defaultplant'));
+    if(sku && plant) defaultPlantBySku[sku] = plant;
+  });
+
+  lanes.forEach(r => {
+    const src = normalizeText(getField(r,'source_plant','SourcePlant','source'));
+    const dst = normalizeText(getField(r,'dest_plant','DestPlant','destination'));
+    const sku = normalizeText(getField(r,'sku_id','SKU','Material'));
+    const edgeVal = Math.max(1, toNum(getField(r,'distance_km')) / 100);
+    const srcId = /^DC/i.test(src) ? 'dc_' + src : 'plt_' + src;
+    const dstId = /^DC/i.test(dst) ? 'dc_' + dst : 'plt_' + dst;
+    const risk = normalizeText(getField(r,'expedite_lane_flag'),'N').toUpperCase() === 'Y' ? 'medium' : 'low';
+    pushLink(srcId, dstId, edgeVal, sku, risk);
+  });
+
+  forecastRows.forEach(r => {
+    const nodeId = /^DC/i.test(r.node) ? 'dc_' + r.node : 'plt_' + r.node;
+    const marketId = 'mkt_Priority-' + r.priority;
+    pushLink(nodeId, marketId, Math.max(1, r.qty), r.sku, 'low');
+    const plant = defaultPlantBySku[r.sku];
+    if(plant && /^DC/i.test(r.node)) pushLink('plt_' + plant, 'dc_' + r.node, Math.max(1, r.qty), r.sku, 'low');
+  });
+
+  const nodes = [];
+
+  function pushNode(id,label,type,details){
+    const baseScore = (details.stockouts || 0) * 15 + (details.overloads || 0) * 11 + (details.latePOs || 0) * 6 + (details.external || 0) * 6 + (details.avgDelay || 0) * 0.9 + ((details.coverageDays !== null && details.coverageDays < 8) ? 16 : 0) + ((details.otif !== null && details.otif < .7) ? 22 : 0);
+    const severity = riskLabel(baseScore);
+    const costAtRisk = toNum(details.costAtRisk);
+    nodes.push({
+      id, name: label, category: type, value: Math.max(1, baseScore || toNum(details.volume) || 1),
+      riskLevel: severity, riskScore: baseScore, details, costAtRisk
+    });
+  }
+
+  suppliers.forEach(s => {
+    const perf = supplierMetrics.suppliers.find(x => x.supplier === s) || {};
+    pushNode('sup_' + s, s, 'SUPPLIER', {
+      latePOs: lateBySupplier[s] || 0,
+      external: extByNode[s] || 0,
+      avgDelay: perf.avgDelay || avgBy(latePORows.filter(r => r.supplier === s), r => r.delayDays),
+      otif: Number.isFinite(perf.otif) ? perf.otif : null,
+      spend: perf.spend || sumBy(latePORows.filter(r => r.supplier === s), r => r.cost),
+      volume: perf.orderedQty || sumBy(latePORows.filter(r => r.supplier === s), r => r.qty),
+      costAtRisk: (lateBySupplier[s] || 0) * 4200
+    });
+  });
+
+  plants.forEach(p => {
+    const invQty = invAggByNode[p] || 0;
+    const coverage = coverageByNode[p];
+    const plantDemand = dailyDemandByNode[p] ? dailyDemandByNode[p] * 30 : 0;
+    const details = {
+      stockouts: stockoutByPlant[p] || 0,
+      overloads: overloadByPlant[p] || 0,
+      latePOs: lateByPlant[p] || 0,
+      external: extByNode[p] || 0,
+      fillRate: Math.max(55, 100 - (stockoutByPlant[p] || 0)*7 - (overloadByPlant[p] || 0)*5 - (lateByPlant[p] || 0)*3),
+      inventory: invQty,
+      coverageDays: Number.isFinite(coverage) ? coverage : null,
+      demand: plantDemand,
+      costAtRisk: ((stockoutByPlant[p] || 0) * 8500) + ((overloadByPlant[p] || 0) * 2400) + ((lateByPlant[p] || 0) * 1700)
+    };
+    pushNode('plt_' + p, p, 'PLANT', details);
+  });
+
+  dcs.forEach(dc => {
+    const invQty = invAggByNode[dc] || 0;
+    const coverage = coverageByNode[dc];
+    pushNode('dc_' + dc, dc, 'DC', {
+      stockouts: stockoutByPlant[dc] || 0,
+      overloads: 0,
+      latePOs: lateByPlant[dc] || 0,
+      external: extByNode[dc] || 0,
+      inventory: invQty,
+      coverageDays: Number.isFinite(coverage) ? coverage : null,
+      demand: demandByNode[dc] || 0,
+      costAtRisk: (coverage !== null && coverage < 8 ? 6000 : 0) + ((extByNode[dc] || 0) * 900)
+    });
+  });
+
+  markets.forEach(m => {
+    const p = m.replace('Priority-','');
+    pushNode('mkt_' + m, m, 'MARKET', {
+      forecast: demandByPriority[p] || 0,
+      coverageDays: null,
+      costAtRisk: 0
+    });
+  });
+
+  const tierOrder = { SUPPLIER: 0, PLANT: 1, DC: 2, MARKET: 3 };
+  const tierGroups = { SUPPLIER: [], PLANT: [], DC: [], MARKET: [] };
+  nodes.forEach(n => { tierGroups[n.category].push(n); });
+  Object.keys(tierGroups).forEach(k => tierGroups[k].sort((a,b) => a.name.localeCompare(b.name)));
+  const tierX = { SUPPLIER: 4, PLANT: 28, DC: 62, MARKET: 88 };
+  Object.keys(tierGroups).forEach(type => {
+    const arr = tierGroups[type];
+    arr.forEach((node, idx) => {
+      node.x = tierX[type];
+      node.y = arr.length === 1 ? 50 : 10 + (idx * (80 / Math.max(1, arr.length - 1)));
+    });
+  });
+
+  const risks = [];
+  function addRisk(kind, score, title, summary, action, highlightIds, extra={}){
+    if(!highlightIds.length) return;
+    const nodeNames = highlightIds.map(id => {
+      const n = nodes.find(x => x.id === id);
+      return n ? n.name : id;
+    }).filter(Boolean);
+    risks.push({
+      id: 'risk_' + (risks.length + 1),
+      kind,
+      severity: riskLabel(score),
+      score,
+      title,
+      summary,
+      action,
+      highlightIds,
+      nodes: nodeNames,
+      probability: extra.probability ?? Math.min(95, 30 + Math.round(score * .7)),
+      impact: extra.impact ?? Math.min(95, 35 + Math.round(score * .75)),
+      owner: extra.owner || (kind === 'supplier' ? 'Procurement' : kind === 'capacity' ? 'Plant Ops' : 'Supply Planning'),
+      fillRateImpact: extra.fillRateImpact ?? Math.max(1, Math.round(score / 10)),
+      costImpact: extra.costImpact ?? Math.round(score * 950)
+    });
+  }
+
+  Object.entries(stockoutByPlant).forEach(([plant,count]) => {
+    const id = 'plt_' + plant;
+    const coverage = coverageByNode[plant];
+    addRisk('stockout', count * 16 + ((coverage !== null && coverage < 8) ? 10 : 0),
+      'Material stockout exposure at ' + plant,
+      count + ' MRP stockout signals and projected inventory pressure detected.',
+      coverage !== null && coverage < 8 ? 'Reposition inventory, expedite inbound receipts, and prioritize constrained BOM paths.' : 'Expedite inbound supply and rebalance inventory to protect service.',
+      [id],
+      { owner:'Supply Planning', fillRateImpact: Math.max(2, count * 2), costImpact: count * 9800, probability: 78, impact: 86 }
+    );
+  });
+
+  Object.entries(overloadByPlant).forEach(([plant,count]) => {
+    addRisk('capacity', count * 14,
+      'Capacity overload at ' + plant,
+      count + ' overloaded workcenter buckets are above available capacity.',
+      'Activate overtime headroom, resequence production, or defer lower-priority orders.',
+      ['plt_' + plant],
+      { owner:'Manufacturing', fillRateImpact: Math.max(1, count), costImpact: count * 4200, probability: 66, impact: 72 }
+    );
+  });
+
+  supplierMetrics.suppliers.slice(0, 4).forEach(s => {
+    if(s.otif < 0.7 || s.avgDelay > 7 || s.openDue > 0){
+      addRisk('supplier', (1 - s.otif) * 55 + s.avgDelay * 1.2 + s.openDue * 7,
+        'Supplier reliability risk — ' + s.supplier,
+        'OTIF at ' + fmtPct(s.otif, 0) + ', average delay ' + s.avgDelay.toFixed(1) + ' days.',
+        'Review alternate sources, expedite open lines, and protect critical plants first.',
+        ['sup_' + s.supplier, ...latePORows.filter(r => r.supplier === s.supplier).slice(0,2).map(r => 'plt_' + r.plant)],
+        { owner:'Procurement', fillRateImpact: Math.max(1, Math.round((1 - s.otif) * 10)), costImpact: Math.round(s.avgDelay * 900), probability: 74, impact: 80 }
+      );
+    }
+  });
+
+  externalRows.slice(0, 4).forEach(e => {
+    if(e.nodeId){
+      const prefix = e.nodeType === 'supplier' ? 'sup_' : e.nodeType === 'lane' ? '' : /^DC/i.test(e.nodeId) ? 'dc_' : 'plt_';
+      const id = prefix ? prefix + e.nodeId : null;
+      if(id){
+        addRisk('external', e.severityNum * 12 + e.expectedDelay * 2,
+          'External signal — ' + e.type.replace(/_/g,' '),
+          'Expected delay ' + e.expectedDelay + ' day(s) with probability ' + fmtPct(e.probability || .5, 0) + '.',
+          'Monitor propagation, isolate affected flow, and create alternate fulfillment path.',
+          [id],
+          { owner:'Control Tower', fillRateImpact: Math.max(1, Math.round((e.severityNum || 1))), costImpact: (e.expectedDelay || 1) * 1600, probability: Math.round((e.probability || .5)*100), impact: 65 + (e.severityNum * 5) }
+        );
+      }
+    }
+  });
+
+  risks.sort((a,b) => b.score - a.score);
+  if(!risks.length){
+    addRisk('general', 10, 'No major constraints detected', 'The current snapshot does not show high-severity exceptions.', 'Continue to monitor service and supplier performance.', nodes.slice(0,1).map(n => n.id), { probability: 18, impact: 20, fillRateImpact: 1, costImpact: 0 });
+  }
+
+  const autoRecs = risks.slice(0, 8).map((risk, idx) => {
+    const targetId = risk.highlightIds[0];
+    const targetNode = nodes.find(n => n.id === targetId);
+    const inbound = links.filter(l => l.target === targetId);
+    const sourceNode = inbound.length ? nodes.find(n => n.id === inbound.sort((a,b)=>b.value-a.value)[0].source) : null;
+    const uplift = risk.fillRateImpact;
+    return {
+      id: 'auto_' + (idx+1),
+      source: 'auto',
+      node: targetNode ? targetNode.name : 'Network',
+      nodeId: targetId,
+      from_node: sourceNode ? sourceNode.name : '',
+      fromNodeId: sourceNode ? sourceNode.id : '',
+      to_node: targetNode ? targetNode.name : '',
+      toNodeId: targetId,
+      action: risk.action,
+      fill_rate_delta: '+' + uplift.toFixed(1) + '%',
+      cost_delta: fmtCurrency(risk.costImpact * 0.15),
+      confidence: '0.76',
+      riskId: risk.id
+    };
+  });
+
+  const focusSummary = {
+    snapshotId, scenarioName, preferenceMode,
+    topRisk: risks[0] ? risks[0].title : '—'
+  };
+
+  return {
+    snapshotId,
+    scenarioName,
+    preferenceMode,
+    nodes,
+    links,
+    risks,
+    autoRecs,
+    supplierMetrics,
+    focusSummary,
+    kpis: {
+      otif,
+      supplierOtif,
+      availability,
+      daysCoverage,
+      latePoRate,
+      avgUtil,
+      fillRate: fillRateProxy,
+      costAtRisk: totalCostRisk,
+      latePOCount: latePOOnly.length,
+      stockoutCount: stockoutRows.length,
+      overloadCount: overloadRows.length,
+      potentialAiUplift
+    },
+    stockoutByPlant,
+    overloadByPlant,
+    lateByPlant,
+    lateBySupplier,
+    coverageByNode,
+    invAggByNode,
+    demandByNode,
+    demandByPriority,
+    capacityRows,
+    delayRows: latePORows,
+    externalRows,
+    optionalLoaded: !!(optionalSheets && Object.keys(optionalSheets).length),
+    notes: buildNotes({
+      otif,
+      availability,
+      daysCoverage,
+      latePoRate,
+      supplierMetrics,
+      stockoutRows,
+      overloadRows,
+      totalCostRisk,
+      risks
+    })
+  };
+}
+
+function buildNotes(s){
+  const notes = [];
+  const worstSupplier = s.supplierMetrics.suppliers[0];
+  if(Number.isFinite(s.supplierMetrics.overallOtif)){
+    notes.push({
+      title: 'Inbound reliability',
+      body: 'Overall OTIF is ' + fmtPct(s.otif,0) + (s.supplierMetrics.suppliers.length ? '. Worst supplier currently: ' + worstSupplier.supplier + ' at ' + fmtPct(worstSupplier.otif,0) + '.' : '.')
+    });
+  }
+  notes.push({
+    title: 'Availability',
+    body: 'Availability is running at ' + fmtPct(s.availability,0) + ', based on positions not breaching stockout / safety limits.'
+  });
+  notes.push({
+    title: 'Coverage health',
+    body: Number.isFinite(s.daysCoverage) ? ('Average days of coverage is ' + s.daysCoverage.toFixed(1) + ' days. Below 8 days is flagged as fragile.') : 'Coverage could not be derived for the current snapshot.'
+  });
+  notes.push({
+    title: 'Execution pressure',
+    body: s.latePoRate > .15 ? 'Late POs are elevated and are likely driving service and supplier risk.' : 'Late PO rate is within a more manageable range.'
+  });
+  notes.push({
+    title: 'Cost exposure',
+    body: 'Estimated cost at risk is ' + fmtCurrency(s.totalCostRisk) + ', driven by stockout, expedite, and overtime exposure.'
+  });
+  if(s.risks.length){
+    notes.push({
+      title: 'Top risk',
+      body: s.risks[0].title + ' — ' + s.risks[0].summary
+    });
+  }
+  return notes.slice(0,6);
+}
+
+function rebuildModel(){
+  app.model = computeModel(app.rawPrimary, app.rawOptional);
+  if(app.model && app.selectedRiskId && !app.model.risks.find(r => r.id === app.selectedRiskId)) app.selectedRiskId = null;
+  if(app.model && app.selectedNodeId && !app.model.nodes.find(n => n.id === app.selectedNodeId)) app.selectedNodeId = null;
+  matchAiRecommendations();
+  renderAll();
+}
+
+function getAllRecommendations(){
+  const model = app.model;
+  if(!model) return [];
+  return [...model.autoRecs, ...app.matchedRecs];
+}
+
+function matchAiRecommendations(){
+  app.matchedRecs = [];
+  app.unmatchedRecs = [];
+  if(!app.model){
+    return;
+  }
+  const nameMap = new Map();
+  app.model.nodes.forEach(n => {
+    nameMap.set(normalizeKey(n.name), n);
+    nameMap.set(normalizeKey(n.id), n);
+  });
+  app.aiRecs.forEach((rec, idx) => {
+    const target = nameMap.get(normalizeKey(rec.node)) || nameMap.get(normalizeKey(rec.to_node));
+    const source = nameMap.get(normalizeKey(rec.from_node)) || null;
+    if(target){
+      app.matchedRecs.push({
+        id:'ai_' + (idx+1),
+        source:'ai',
+        node: target.name,
+        nodeId: target.id,
+        from_node: source ? source.name : normalizeText(rec.from_node,''),
+        fromNodeId: source ? source.id : '',
+        to_node: target.name,
+        toNodeId: target.id,
+        action: normalizeText(rec.action,'Recommendation'),
+        fill_rate_delta: normalizeText(rec.fill_rate_delta,'+0.0%'),
+        cost_delta: normalizeText(rec.cost_delta,'$0'),
+        confidence: normalizeText(rec.confidence,''),
+        riskId: ''
+      });
+    } else {
+      app.unmatchedRecs.push(rec);
+    }
+  });
+}
+
+function setStatus(text, snapshot='NO DATA'){
+  $('#statusText').textContent = text;
+  $('#snapPill').textContent = snapshot;
+}
+
+function switchTab(tab){
+  app.currentTab = tab;
+  $$('.nav-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + tab));
+  resizeCharts();
+}
+
+function setNetworkMode(mode){
+  app.networkMode = mode;
+  $$('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.networkMode === mode));
+  renderNetwork();
+}
+
+function setEntityFilter(filter){
+  app.entityFilter = filter;
+  $$('.chip-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === filter));
+  renderNetwork();
+}
+
+function clearSelection(){
+  app.selectedRiskId = null;
+  app.selectedNodeId = null;
+  app.focusSupplier = null;
+  renderAll();
+}
+
+function selectRisk(riskId){
+  app.selectedRiskId = riskId;
+  const risk = app.model ? app.model.risks.find(r => r.id === riskId) : null;
+  if(risk && risk.highlightIds.length) app.selectedNodeId = risk.highlightIds[0];
+  renderAll();
+}
+
+function selectNode(nodeId){
+  app.selectedNodeId = nodeId;
+  const node = app.model ? app.model.nodes.find(n => n.id === nodeId) : null;
+  if(node && node.category === 'SUPPLIER') app.focusSupplier = node.name;
+  renderAll();
+}
+
+function currentHighlightIds(){
+  if(!app.model) return new Set();
+  if(app.selectedRiskId){
+    const risk = app.model.risks.find(r => r.id === app.selectedRiskId);
+    return new Set(risk ? risk.highlightIds : []);
+  }
+  if(app.selectedNodeId) return new Set([app.selectedNodeId]);
+  if(app.focusSupplier){
+    const ids = app.model.nodes.filter(n => n.name === app.focusSupplier || n.id === ('sup_' + app.focusSupplier)).map(n => n.id);
+    return new Set(ids);
+  }
+  return new Set();
+}
+
+function renderNetwork(){
+  const dom = $('#networkChart');
+  if(!app.charts.network) app.charts.network = echarts.init(dom);
+  const chart = app.charts.network;
+  if(!app.model){
+    chart.setOption({
+      backgroundColor:'transparent',
+      graphic:[{
+        type:'text',
+        left:'center',
+        top:'middle',
+        style:{ text:'Upload the SCNC workbook to build the network view', fill:'#607089', font:'500 16px DM Sans' }
+      }]
+    }, true);
+    $('#networkRiskList').innerHTML = '<div class="empty-note">No risks yet — upload a workbook or load the demo model.</div>';
+    $('#networkRecStrip').innerHTML = '<div class="empty-note">Recommendations will appear here after the model is computed.</div>';
+    $('#focusTitle').textContent = 'No selection';
+    $('#focusTag').textContent = 'Network';
+    $('#focusFillRate').textContent = '—';
+    $('#focusCoverage').textContent = '—';
+    $('#focusLate').textContent = '—';
+    $('#focusCost').textContent = '—';
+    $('#netNodeCount').textContent = '0';
+    $('#netEdgeCount').textContent = '0';
+    $('#topRiskLabel').textContent = '—';
+    $('#overlayRecCount').textContent = '0';
+    return;
+  }
+
+  const model = app.model;
+  const highlightIds = currentHighlightIds();
+
+  const typeFilter = app.entityFilter === 'all'
+    ? () => true
+    : (n) => (app.entityFilter === 'supplier' ? n.category === 'SUPPLIER' :
+              app.entityFilter === 'plant' ? n.category === 'PLANT' :
+              app.entityFilter === 'dc' ? n.category === 'DC' : true);
+
+  const nodes = model.nodes.filter(typeFilter).map(n => {
+    const isHighlight = !highlightIds.size || highlightIds.has(n.id) || [...highlightIds].some(id => model.links.some(l => (l.source === id && l.target === n.id) || (l.target === id && l.source === n.id)));
+    const recs = getAllRecommendations().filter(r => r.nodeId === n.id || r.toNodeId === n.id);
+    const color = n.riskLevel === 'critical' ? '#f05252' : n.riskLevel === 'high' ? '#f0a500' : n.riskLevel === 'medium' ? '#4a9eff' : '#34d399';
+    const sizeBase = app.networkMode === 'financial' ? 20 + Math.min(28, Math.sqrt(Math.max(0, n.costAtRisk || 0)) / 8) : 20 + Math.min(18, n.value / 4);
+    return {
+      id:n.id, name:n.name, category:n.category, x:n.x, y:n.y, value:n.value,
+      symbolSize: recs.length ? sizeBase + 8 : sizeBase,
+      itemStyle:{
+        color: app.networkMode === 'recommendation' && recs.length ? '#00c9a7' : color,
+        shadowBlur: n.riskLevel === 'critical' ? 22 : recs.length ? 18 : 10,
+        shadowColor: app.networkMode === 'recommendation' && recs.length ? 'rgba(0,201,167,.55)' : color,
+        opacity: isHighlight ? 1 : .18,
+        borderColor: recs.length ? 'rgba(255,255,255,.8)' : 'rgba(255,255,255,.28)',
+        borderWidth: recs.length ? 2 : 1
+      },
+      label:{ show:true, color:isHighlight ? '#dde3ef' : 'rgba(221,227,239,.35)', fontFamily:'DM Sans', fontSize:11, formatter: n.name, position:'bottom' },
+      tooltip: {
+        formatter: () => {
+          const d = n.details || {};
+          return `<div style="min-width:220px">
+            <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${n.name}</div>
+            <div style="font-size:10px;color:#95a3b8;margin-bottom:8px;">${n.category}</div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:#95a3b8">Risk</span><span>${n.riskLevel.toUpperCase()}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:#95a3b8">Fill rate</span><span>${d.fillRate ? Math.round(d.fillRate) + '%' : '—'}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:#95a3b8">Coverage</span><span>${Number.isFinite(d.coverageDays) ? d.coverageDays.toFixed(1) + ' d' : '—'}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:#95a3b8">Late POs</span><span>${d.latePOs || 0}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#95a3b8">Cost at risk</span><span>${fmtCurrency(d.costAtRisk || n.costAtRisk || 0)}</span></div>
+          </div>`;
+        }
+      }
+    };
+  });
+
+  const nodeSet = new Set(nodes.map(n => n.id));
+  const links = model.links.filter(l => nodeSet.has(l.source) && nodeSet.has(l.target)).map(l => {
+    const touched = !highlightIds.size || highlightIds.has(l.source) || highlightIds.has(l.target);
+    const severity = l.riskScore >= 3 ? 'critical' : l.riskScore >= 2 ? 'high' : l.riskScore >= 1 ? 'medium' : 'low';
+    const color = severity === 'critical' ? 'rgba(240,82,82,.6)' : severity === 'high' ? 'rgba(240,165,0,.5)' : severity === 'medium' ? 'rgba(74,158,255,.45)' : 'rgba(122,135,153,.22)';
+    return {
+      source:l.source, target:l.target, value:l.value,
+      lineStyle:{ color, width: Math.min(8, 1 + Math.log10(Math.max(1, l.value))), opacity: touched ? 1 : .08, curveness:.18 },
+      label:{ show:false },
+      emphasis:{ lineStyle:{ width: Math.min(10, 2 + Math.log10(Math.max(1, l.value))) } }
+    };
+  });
+
+  const recs = getAllRecommendations();
+  const recLinks = recs.map(r => {
+    if(r.fromNodeId && r.toNodeId) return { source:r.fromNodeId, target:r.toNodeId, value:1 };
+    const inbound = model.links.find(l => l.target === r.nodeId);
+    return inbound ? { source: inbound.source, target: r.nodeId, value:1 } : null;
+  }).filter(Boolean).map(r => ({
+    source:r.source, target:r.target,
+    lineStyle:{ color:'rgba(0,201,167,.55)', width:3, curveness:.28, opacity: app.networkMode === 'recommendation' ? .95 : .18 },
+    effect:{ show: app.networkMode === 'recommendation', constantSpeed: 35, trailLength:.18, symbolSize:7, color:'#00c9a7' }
+  }));
+
+  const option = {
+    backgroundColor:'transparent',
+    animationDuration: 700,
+    tooltip:{ trigger:'item', backgroundColor:'rgba(14,20,32,.94)', borderColor:'rgba(255,255,255,.12)', textStyle:{ color:'#dde3ef' } },
+    graphic: [
+      { type:'text', left:'6%', top:18, style:{ text:'SUPPLIERS', fill:'#3d4a5c', font:'700 11px Space Mono' } },
+      { type:'text', left:'30%', top:18, style:{ text:'PLANTS', fill:'#3d4a5c', font:'700 11px Space Mono' } },
+      { type:'text', left:'64%', top:18, style:{ text:'DCS', fill:'#3d4a5c', font:'700 11px Space Mono' } },
+      { type:'text', left:'88%', top:18, style:{ text:'MARKETS', fill:'#3d4a5c', font:'700 11px Space Mono' } }
+    ],
+    xAxis:{ show:false, min:0, max:100 },
+    yAxis:{ show:false, min:0, max:100 },
+    series:[
+      {
+        type:'graph',
+        coordinateSystem:'cartesian2d',
+        roam:true,
+        data:nodes,
+        links:links,
+        categories:[
+          { name:'SUPPLIER' },{ name:'PLANT' },{ name:'DC' },{ name:'MARKET' }
+        ],
+        edgeSymbol:['none','arrow'],
+        edgeSymbolSize:[0,9],
+        lineStyle:{ opacity:.4 },
+        emphasis:{ focus:'adjacency', scale:true },
+        draggable:false
+      },
+      {
+        type:'lines',
+        coordinateSystem:'cartesian2d',
+        polyline:false,
+        data:recLinks.map(l => ({ coords:[
+          [model.nodes.find(n => n.id===l.source)?.x || 0, model.nodes.find(n => n.id===l.source)?.y || 0],
+          [model.nodes.find(n => n.id===l.target)?.x || 0, model.nodes.find(n => n.id===l.target)?.y || 0]
+        ], lineStyle:l.lineStyle, effect:l.effect })),
+        silent:true,
+        effect:{ show: app.networkMode === 'recommendation', symbol:'arrow', symbolSize:7, period:4, trailLength:.2 },
+        lineStyle:{ curveness:.22, width:3, color:'rgba(0,201,167,.45)' }
+      }
+    ]
+  };
+
+  chart.setOption(option, true);
+  chart.off('click');
+  chart.on('click', params => {
+    if(params.dataType === 'node' && params.data && params.data.id){
+      selectNode(params.data.id);
+    }
+  });
+
+  const focus = currentFocusNode(model);
+  $('#focusTitle').textContent = focus ? focus.name : (app.selectedRiskId ? (model.risks.find(r => r.id === app.selectedRiskId)?.title || 'Selected risk') : 'No selection');
+  $('#focusTag').textContent = focus ? focus.category : (app.selectedRiskId ? 'Risk' : 'Network');
+  $('#focusFillRate').textContent = focus && focus.details.fillRate ? Math.round(focus.details.fillRate) + '%' : Math.round(model.kpis.fillRate) + '%';
+  $('#focusCoverage').textContent = focus && Number.isFinite(focus.details.coverageDays) ? focus.details.coverageDays.toFixed(1) + ' d' : (Number.isFinite(model.kpis.daysCoverage) ? model.kpis.daysCoverage.toFixed(1) + ' d' : '—');
+  $('#focusLate').textContent = focus ? String(focus.details.latePOs || 0) : String(model.kpis.latePOCount);
+  $('#focusCost').textContent = focus ? fmtCurrency(focus.costAtRisk || focus.details.costAtRisk || 0) : fmtCurrency(model.kpis.costAtRisk);
+  $('#netNodeCount').textContent = String(model.nodes.length);
+  $('#netEdgeCount').textContent = String(model.links.length);
+  $('#topRiskLabel').textContent = model.focusSummary.topRisk || '—';
+  $('#overlayRecCount').textContent = String(getAllRecommendations().length);
+
+  const riskCards = model.risks.slice(0, 6).map(r => `
+    <div class="focus-card ${app.selectedRiskId === r.id ? 'active' : ''}" data-risk-id="${r.id}">
+      <div class="focus-top">
+        <span class="sev ${r.severity}">${r.severity.toUpperCase()}</span>
+        <span class="mini-tag">${r.owner}</span>
+      </div>
+      <div class="focus-title">${r.title}</div>
+      <div class="focus-meta">${r.summary}</div>
+      <div class="legend-row" style="margin-top:8px;">
+        ${r.nodes.slice(0,4).map(n => `<span class="small-badge">${n}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+  $('#networkRiskList').innerHTML = riskCards || '<div class="empty-note">No risks computed yet.</div>';
+  $$('#networkRiskList .focus-card').forEach(el => el.onclick = () => selectRisk(el.dataset.riskId));
+
+  const recStrip = getAllRecommendations().slice(0, 10).map(r => `
+    <div class="rec-chip">
+      <h4>${r.node}</h4>
+      <p>${r.action}</p>
+      <div class="mini">${r.fill_rate_delta || ''} ${r.cost_delta ? ' · ' + r.cost_delta : ''}</div>
+    </div>
+  `).join('');
+  $('#networkRecStrip').innerHTML = recStrip || '<div class="empty-note">No recommendations yet.</div>';
+}
+
+function chartOptionBase(title){
+  return {
+    backgroundColor:'transparent',
+    animationDuration:700,
+    textStyle:{ color:'#dde3ef', fontFamily:'DM Sans' },
+    grid:{ left:46, right:18, top:22, bottom:38, containLabel:false },
+    tooltip:{ trigger:'axis', backgroundColor:'rgba(14,20,32,.94)', borderColor:'rgba(255,255,255,.12)', textStyle:{ color:'#dde3ef' } },
+    xAxis:{ axisLabel:{ color:'#95a3b8' }, axisLine:{ lineStyle:{ color:'rgba(255,255,255,.1)' } }, splitLine:{ show:false } },
+    yAxis:{ axisLabel:{ color:'#95a3b8' }, axisLine:{ show:false }, splitLine:{ lineStyle:{ color:'rgba(255,255,255,.06)' } } }
+  };
+}
+function setChart(id, option, onClick){
+  const dom = document.getElementById(id);
+  if(!dom) return;
+  if(!app.charts[id]) app.charts[id] = echarts.init(dom);
+  const chart = app.charts[id];
+  chart.setOption(option, true);
+  chart.off('click');
+  if(onClick) chart.on('click', onClick);
+}
+function renderKpis(){
+  const m = app.model;
+  if(!m){
+    ['kpiOtif','kpiAvailability','kpiCoverageDays','kpiSupplierOtif','kpiLateRate','kpiUtilization','kpiCostRisk','kpiUplift'].forEach(id => $('#' + id).textContent = '—');
+    $('#kpiNotes').innerHTML = '<div class="empty-note">Upload the main workbook to populate KPI visuals.</div>';
+    ['supplierOtifChart','coverageChart','severityChart','delayBucketChart','utilTrendChart','driverChart'].forEach(id => {
+      setChart(id, { graphic:[{ type:'text', left:'center', top:'middle', style:{ text:'Awaiting data', fill:'#607089', font:'500 15px DM Sans' } }] });
+    });
+    return;
+  }
+  $('#optionalLoadedLabel').textContent = m.optionalLoaded ? 'Loaded' : 'Not loaded';
+  $('#kpiFocusLabel').textContent = currentFocusNode(m)?.name || (app.selectedRiskId ? (m.risks.find(r => r.id === app.selectedRiskId)?.title || 'Network focus') : 'Network view');
+  $('#kpiOtif').textContent = fmtPct(m.kpis.otif,0);
+  $('#kpiAvailability').textContent = fmtPct(m.kpis.availability,0);
+  $('#kpiCoverageDays').textContent = Number.isFinite(m.kpis.daysCoverage) ? m.kpis.daysCoverage.toFixed(1) + 'd' : '—';
+  $('#kpiSupplierOtif').textContent = fmtPct(m.kpis.supplierOtif,0);
+  $('#kpiLateRate').textContent = fmtPct(m.kpis.latePoRate,0);
+  $('#kpiUtilization').textContent = fmtPct(m.kpis.avgUtil,0);
+  $('#kpiCostRisk').textContent = fmtCurrency(m.kpis.costAtRisk);
+  $('#kpiUplift').textContent = getAllRecommendations().length ? '+' + getAllRecommendations().reduce((s,r)=>s+pctStringToNumber(r.fill_rate_delta),0).toFixed(1) + '%' : '+0.0%';
+
+  $('#kpiNotes').innerHTML = m.notes.map(n => `<div class="risk-card"><div class="kicker">${n.title}</div><h3>${n.body}</h3></div>`).join('');
+
+  const supplierData = m.supplierMetrics.suppliers.slice(0,8).reverse();
+  const focusSupplier = app.focusSupplier;
+  setChart('supplierOtifChart', {
+    ...chartOptionBase(),
+    grid:{ left:92, right:18, top:14, bottom:24 },
+    xAxis:{ type:'value', max:1, axisLabel:{ color:'#95a3b8', formatter:v => Math.round(v*100) + '%' }, splitLine:{ lineStyle:{ color:'rgba(255,255,255,.06)' } } },
+    yAxis:{ type:'category', data:supplierData.map(s => s.supplier), axisLabel:{ color:'#95a3b8' }, axisLine:{ show:false }, axisTick:{ show:false } },
+    series:[{
+      type:'bar',
+      data:supplierData.map(s => ({
+        value:s.otif,
+        itemStyle:{ color: focusSupplier && s.supplier === focusSupplier ? '#f0a500' : '#4a9eff', borderRadius:[0,8,8,0] }
+      })),
+      label:{ show:true, position:'right', color:'#dde3ef', formatter:p => Math.round(p.value*100) + '%' }
+    }]
+  }, params => { app.focusSupplier = supplierData[params.dataIndex]?.supplier || null; renderAll(); });
+
+  const coverageNodes = m.nodes.filter(n => (n.category === 'PLANT' || n.category === 'DC') && Number.isFinite(n.details.coverageDays)).sort((a,b)=>a.details.coverageDays-b.details.coverageDays);
+  setChart('coverageChart', {
+    ...chartOptionBase(),
+    grid:{ left:48, right:12, top:20, bottom:58 },
+    xAxis:{ type:'category', data:coverageNodes.map(n => n.name), axisLabel:{ color:'#95a3b8', rotate:30 } },
+    yAxis:{ type:'value', axisLabel:{ color:'#95a3b8' }, splitLine:{ lineStyle:{ color:'rgba(255,255,255,.06)' } } },
+    series:[{
+      type:'bar',
+      data:coverageNodes.map(n => ({
+        value:n.details.coverageDays.toFixed(2),
+        itemStyle:{ color: n.details.coverageDays < 8 ? '#f05252' : n.details.coverageDays < 15 ? '#f0a500' : '#34d399', borderRadius:[8,8,0,0] }
+      }))
+    }]
+  }, params => {
+    const node = coverageNodes[params.dataIndex];
+    if(node) selectNode(node.id);
+  });
+
+  const sevCounts = ['critical','high','medium','low'].map(level => m.nodes.filter(n => n.riskLevel === level).length);
+  setChart('severityChart', {
+    tooltip:{ trigger:'item', backgroundColor:'rgba(14,20,32,.94)', borderColor:'rgba(255,255,255,.12)', textStyle:{ color:'#dde3ef' } },
+    legend:{ bottom:4, textStyle:{ color:'#95a3b8' } },
+    series:[{
+      type:'pie',
+      radius:['50%','72%'],
+      center:['50%','46%'],
+      label:{ color:'#dde3ef' },
+      data:[
+        {name:'Critical', value:sevCounts[0], itemStyle:{ color:'#f05252' }},
+        {name:'High', value:sevCounts[1], itemStyle:{ color:'#f0a500' }},
+        {name:'Medium', value:sevCounts[2], itemStyle:{ color:'#4a9eff' }},
+        {name:'Low', value:sevCounts[3], itemStyle:{ color:'#34d399' }}
+      ]
+    }]
+  });
+
+  const buckets = { '0-7d':0, '8-14d':0, '15-21d':0, '22d+':0 };
+  m.delayRows.forEach(r => {
+    const d = r.delayDays || 0;
+    if(d <= 7) buckets['0-7d']++;
+    else if(d <= 14) buckets['8-14d']++;
+    else if(d <= 21) buckets['15-21d']++;
+    else buckets['22d+']++;
+  });
+  setChart('delayBucketChart', {
+    ...chartOptionBase(),
+    xAxis:{ type:'category', data:Object.keys(buckets), axisLabel:{ color:'#95a3b8' } },
+    yAxis:{ type:'value', axisLabel:{ color:'#95a3b8' }, splitLine:{ lineStyle:{ color:'rgba(255,255,255,.06)' } } },
+    series:[{
+      type:'bar',
+      data:Object.entries(buckets).map(([k,v]) => ({ value:v, itemStyle:{ color: k === '22d+' ? '#f05252' : k === '15-21d' ? '#f0a500' : '#4a9eff', borderRadius:[8,8,0,0] } }))
+    }]
+  });
+
+  const utilRows = m.capacityRows.slice().sort((a,b) => String(a.bucketDate).localeCompare(String(b.bucketDate)));
+  setChart('utilTrendChart', {
+    ...chartOptionBase(),
+    xAxis:{ type:'category', data:utilRows.map(r => (r.bucketDate || '').slice(5)), axisLabel:{ color:'#95a3b8', rotate:35 } },
+    yAxis:{ type:'value', axisLabel:{ color:'#95a3b8', formatter:v => Math.round(v*100)+'%' }, splitLine:{ lineStyle:{ color:'rgba(255,255,255,.06)' } } },
+    series:[{
+      type:'line',
+      smooth:true,
+      data:utilRows.map(r => r.util || (r.avail ? r.load/r.avail : 0)),
+      lineStyle:{ color:'#a78bfa', width:3 },
+      areaStyle:{ color:'rgba(167,139,250,.14)' },
+      symbolSize:6,
+      itemStyle:{ color:'#a78bfa' }
+    }]
+  });
+
+  const drivers = Object.keys(m.stockoutByPlant).map(plant => ({
+    plant,
+    stockouts:m.stockoutByPlant[plant] || 0,
+    overloads:m.overloadByPlant[plant] || 0,
+    late:m.lateByPlant[plant] || 0
+  })).sort((a,b)=>(b.stockouts+b.overloads+b.late) - (a.stockouts+a.overloads+a.late)).slice(0,6);
+  setChart('driverChart', {
+    ...chartOptionBase(),
+    legend:{ top:4, textStyle:{ color:'#95a3b8' } },
+    xAxis:{ type:'category', data:drivers.map(d => d.plant), axisLabel:{ color:'#95a3b8' } },
+    yAxis:{ type:'value', axisLabel:{ color:'#95a3b8' }, splitLine:{ lineStyle:{ color:'rgba(255,255,255,.06)' } } },
+    series:[
+      { name:'Stockouts', type:'bar', stack:'risk', data:drivers.map(d => d.stockouts), itemStyle:{ color:'#f05252', borderRadius:[8,8,0,0] } },
+      { name:'Overloads', type:'bar', stack:'risk', data:drivers.map(d => d.overloads), itemStyle:{ color:'#a78bfa' } },
+      { name:'Late POs', type:'bar', stack:'risk', data:drivers.map(d => d.late), itemStyle:{ color:'#f0a500' } }
+    ]
+  }, params => {
+    const d = drivers[params.dataIndex];
+    if(d) selectNode('plt_' + d.plant);
+  });
+}
+
+function renderRisks(){
+  const m = app.model;
+  if(!m){
+    $('#riskList').innerHTML = '<div class="empty-note">Upload data to build the ranked risk room.</div>';
+    $('#playbookList').innerHTML = '<div class="empty-note">Recommended actions will appear here.</div>';
+    $('#selectedRiskLabel').textContent = 'None';
+    $('#riskNarrative').textContent = 'Select a risk to see the recommended action chain and KPI impact.';
+    ['riskMatrixChart','supplierWatchChart','scenarioChart'].forEach(id => setChart(id, { graphic:[{ type:'text', left:'center', top:'middle', style:{ text:'Awaiting data', fill:'#607089', font:'500 15px DM Sans' } }] }));
+    return;
+  }
+
+  const selectedRisk = m.risks.find(r => r.id === app.selectedRiskId) || m.risks[0];
+  if(selectedRisk && !app.selectedRiskId) app.selectedRiskId = selectedRisk.id;
+  $('#selectedRiskLabel').textContent = selectedRisk ? selectedRisk.title : 'None';
+
+  $('#riskList').innerHTML = m.risks.slice(0,8).map(r => `
+    <div class="risk-card ${app.selectedRiskId === r.id ? 'active' : ''}" data-risk-id="${r.id}">
+      <div class="focus-top">
+        <span class="sev ${r.severity}">${r.severity.toUpperCase()}</span>
+        <span class="mini-tag">${r.owner}</span>
+      </div>
+      <h3>${r.title}</h3>
+      <p>${r.summary}</p>
+      <div class="risk-badges">
+        <span class="small-badge">Impact ${r.impact}</span>
+        <span class="small-badge">Probability ${r.probability}</span>
+        <span class="small-badge">Fill-rate ${r.fillRateImpact}%</span>
+      </div>
+    </div>
+  `).join('');
+  $$('#riskList .risk-card').forEach(el => el.onclick = () => selectRisk(el.dataset.riskId));
+
+  if(selectedRisk){
+    $('#riskNarrative').innerHTML = `<strong>${selectedRisk.title}</strong><br>${selectedRisk.action}<br><span style="color:#95a3b8">Likely owner: ${selectedRisk.owner} · Est. fill-rate impact ${selectedRisk.fillRateImpact}% · Cost exposure ${fmtCurrency(selectedRisk.costImpact)}</span>`;
+  }
+
+  const playbook = getAllRecommendations().filter(r => !selectedRisk || !r.riskId || r.riskId === selectedRisk.id || r.nodeId === selectedRisk.highlightIds[0]).slice(0,8);
+  $('#playbookList').innerHTML = playbook.map(r => `
+    <div class="playbook-card">
+      <div class="kicker">${r.source === 'ai' ? 'AI recommendation' : 'Auto recommendation'}</div>
+      <h4>${r.node}</h4>
+      <p>${r.action}</p>
+      <div class="playbook-row">
+        ${r.fill_rate_delta ? `<span class="small-badge">${r.fill_rate_delta} uplift</span>` : ''}
+        ${r.cost_delta ? `<span class="small-badge">${r.cost_delta}</span>` : ''}
+        ${r.from_node ? `<span class="small-badge">${r.from_node} → ${r.to_node || r.node}</span>` : ''}
+      </div>
+    </div>
+  `).join('') || '<div class="empty-note">No playbook items yet.</div>';
+
+  setChart('riskMatrixChart', {
+    backgroundColor:'transparent',
+    grid:{ left:48, right:20, top:18, bottom:48 },
+    tooltip:{ trigger:'item', backgroundColor:'rgba(14,20,32,.94)', borderColor:'rgba(255,255,255,.12)', textStyle:{ color:'#dde3ef' } },
+    xAxis:{ type:'value', min:0, max:100, name:'Probability', nameTextStyle:{ color:'#95a3b8' }, axisLabel:{ color:'#95a3b8' }, splitLine:{ lineStyle:{ color:'rgba(255,255,255,.06)' } } },
+    yAxis:{ type:'value', min:0, max:100, name:'Impact', nameTextStyle:{ color:'#95a3b8' }, axisLabel:{ color:'#95a3b8' }, splitLine:{ lineStyle:{ color:'rgba(255,255,255,.06)' } } },
+    series:[{
+      type:'scatter',
+      symbolSize: p => 16 + (p[2] / 3),
+      data: m.risks.map(r => ({
+        value:[r.probability, r.impact, r.score],
+        name:r.title,
+        riskId:r.id,
+        itemStyle:{ color:riskColor(r.severity), shadowBlur: app.selectedRiskId === r.id ? 18 : 8, shadowColor:riskColor(r.severity) }
+      })),
+      label:{ show:true, formatter: p => p.data.name.split(' — ')[0], color:'#dde3ef', position:'top', fontSize:10 }
+    }]
+  }, params => {
+    const riskId = params.data && params.data.riskId;
+    if(riskId) selectRisk(riskId);
+  });
+
+  const worstSuppliers = m.supplierMetrics.suppliers.slice(0,6).reverse();
+  setChart('supplierWatchChart', {
+    ...chartOptionBase(),
+    grid:{ left:90, right:14, top:20, bottom:24 },
+    xAxis:{ type:'value', max: Math.max(10, ...worstSuppliers.map(s => s.avgDelay)) },
+    yAxis:{ type:'category', data:worstSuppliers.map(s => s.supplier), axisLabel:{ color:'#95a3b8' }, axisLine:{ show:false }, axisTick:{ show:false } },
+    series:[{
+      type:'bar',
+      data:worstSuppliers.map(s => ({ value:s.avgDelay.toFixed(1), itemStyle:{ color:s.otif < .7 ? '#f05252' : '#f0a500', borderRadius:[0,8,8,0] } })),
+      label:{ show:true, position:'right', color:'#dde3ef', formatter:p => p.value + ' d' }
+    }]
+  }, params => {
+    const sup = worstSuppliers[params.dataIndex];
+    if(sup){
+      app.focusSupplier = sup.supplier;
+      renderAll();
+    }
+  });
+
+  const baseFill = m.kpis.fillRate;
+  const gain = getAllRecommendations().reduce((s,r) => s + pctStringToNumber(r.fill_rate_delta), 0);
+  setChart('scenarioChart', {
+    ...chartOptionBase(),
+    xAxis:{ type:'category', data:['Baseline','Recommended'], axisLabel:{ color:'#95a3b8' } },
+    yAxis:{ type:'value', max:100, axisLabel:{ color:'#95a3b8', formatter:v => v + '%' }, splitLine:{ lineStyle:{ color:'rgba(255,255,255,.06)' } } },
+    series:[{
+      type:'bar',
+      data:[
+        { value:baseFill, itemStyle:{ color:'#4a9eff', borderRadius:[10,10,0,0] } },
+        { value:Math.min(100, baseFill + gain), itemStyle:{ color:'#00c9a7', borderRadius:[10,10,0,0] } }
+      ],
+      label:{ show:true, position:'top', color:'#dde3ef', formatter:p => Math.round(p.value) + '%' }
+    }]
+  });
+}
+
+function renderAi(){
+  const m = app.model;
+  $('#aiMatchCount').textContent = String(app.matchedRecs.length);
+  $('#aiUnmatchCount').textContent = String(app.unmatchedRecs.length);
+
+  const uplift = app.matchedRecs.reduce((s,r)=>s+pctStringToNumber(r.fill_rate_delta),0);
+  const cost = app.matchedRecs.reduce((s,r)=>s+currencyStringToNumber(r.cost_delta),0);
+  $('#aiUpliftTotal').textContent = '+' + uplift.toFixed(1) + '%';
+  $('#aiCostTotal').textContent = fmtCurrency(cost);
+
+  $('#matchedList').innerHTML = app.matchedRecs.length
+    ? app.matchedRecs.map(r => `<div class="ai-card"><strong>${r.node}</strong><p>${r.action}</p></div>`).join('')
+    : '<div class="empty-note">No matched AI recommendations yet.</div>';
+  $('#unmatchedList').innerHTML = app.unmatchedRecs.length
+    ? app.unmatchedRecs.map(r => `<div class="risk-card"><div class="kicker">${normalizeText(r.node,'Unknown node')}</div><h3>${normalizeText(r.action,'Recommendation')}</h3></div>`).join('')
+    : '<div class="empty-note">All current recommendations match known nodes.</div>';
+
+  $('#aiCardList').innerHTML = app.matchedRecs.length
+    ? app.matchedRecs.map(r => `
+      <div class="ai-card">
+        <strong>${r.node}</strong>
+        <p>${r.action}</p>
+        <div class="playbook-row">
+          ${r.fill_rate_delta ? `<span class="small-badge">${r.fill_rate_delta}</span>` : ''}
+          ${r.cost_delta ? `<span class="small-badge">${r.cost_delta}</span>` : ''}
+          ${r.confidence ? `<span class="small-badge">Conf. ${r.confidence}</span>` : ''}
+        </div>
+      </div>`).join('')
+    : '<div class="empty-note">Paste JSON recommendations to project actions across the dashboard.</div>';
+
+  setChart('aiScenarioChart', app.matchedRecs.length ? {
+    ...chartOptionBase(),
+    grid:{ left:48, right:14, top:20, bottom:56 },
+    xAxis:{ type:'category', data:app.matchedRecs.map(r => r.node), axisLabel:{ color:'#95a3b8', rotate:25 } },
+    yAxis:{ type:'value', axisLabel:{ color:'#95a3b8' }, splitLine:{ lineStyle:{ color:'rgba(255,255,255,.06)' } } },
+    series:[
+      { name:'Fill-rate uplift', type:'bar', data:app.matchedRecs.map(r => pctStringToNumber(r.fill_rate_delta)), itemStyle:{ color:'#00c9a7', borderRadius:[8,8,0,0] } },
+      { name:'Cost delta', type:'line', yAxisIndex:0, data:app.matchedRecs.map(r => currencyStringToNumber(r.cost_delta)/1000), lineStyle:{ color:'#f0a500', width:3 }, itemStyle:{ color:'#f0a500' }, symbolSize:7 }
+    ]
+  } : {
+    graphic:[{ type:'text', left:'center', top:'middle', style:{ text:'Awaiting AI recommendations', fill:'#607089', font:'500 15px DM Sans' } }]
+  });
+}
+
+function updateStatusUi(){
+  if(!app.model){
+    setStatus('Awaiting workbook', 'NO DATA');
+    return;
+  }
+  setStatus((app.model.optionalLoaded ? 'Primary + optional workbook loaded' : 'Primary workbook loaded') + ' · ' + app.model.scenarioName, app.model.snapshotId);
+}
+
+function renderAll(){
+  updateStatusUi();
+  renderNetwork();
+  renderKpis();
+  renderRisks();
+  renderAi();
+}
+
+function resizeCharts(){
+  Object.values(app.charts).forEach(chart => { try{ chart.resize(); }catch(e){} });
+}
+
+async function loadPrimaryFile(file){
+  const sheets = await readWorkbook(file);
+  app.rawPrimary = sheets;
+  rebuildModel();
+}
+async function loadOptionalFile(file){
+  const sheets = await readWorkbook(file);
+  app.rawOptional = sheets;
+  rebuildModel();
+}
+
+function loadDemo(){
+  app.rawPrimary = {
+    'SKU Master':[
+      { sku_id:'FG_1001', default_plant:'PLANT_A', contribution_margin_per_unit:90 },
+      { sku_id:'FG_1002', default_plant:'PLANT_B', contribution_margin_per_unit:82 },
+      { sku_id:'FG_1003', default_plant:'PLANT_C', contribution_margin_per_unit:76 }
+    ],
+    'Inventory':[
+      { sku_id:'FG_1001', plant:'DC_1', qty:420, status:'available' },
+      { sku_id:'FG_1002', plant:'DC_1', qty:180, status:'available' },
+      { sku_id:'FG_1003', plant:'DC_1', qty:680, status:'available' }
+    ],
+    'Purchase Orders':[
+      { po_id:'PO_0102', sku_id:'RM_3001', plant:'PLANT_A', promised_arrival_date:'2026-03-18', updated_arrival_date:'2026-03-29', qty:1200, supplier_id:'SUP_01', status:'open', expedite_allowed:'Y', unit_purchase_cost:8.2 },
+      { po_id:'PO_0110', sku_id:'RM_3002', plant:'PLANT_A', promised_arrival_date:'2026-03-24', updated_arrival_date:'2026-04-07', qty:700, supplier_id:'SUP_02', status:'open', expedite_allowed:'N', unit_purchase_cost:6.1 },
+      { po_id:'PO_0116', sku_id:'RM_3005', plant:'PLANT_B', promised_arrival_date:'2026-03-21', updated_arrival_date:'2026-03-23', qty:800, supplier_id:'SUP_03', status:'closed', expedite_allowed:'Y', unit_purchase_cost:7.5 }
+    ],
+    'Production Orders':[
+      { order_id:'MO_01', sku_id:'FG_1001', plant:'PLANT_A', workcenter:'WC_PACK', planned_total_hours:80, production_cost_per_unit:32 },
+      { order_id:'MO_02', sku_id:'FG_1002', plant:'PLANT_B', workcenter:'WC_ASM', planned_total_hours:72, production_cost_per_unit:28 }
+    ],
+    'Forecast':[
+      { sku_id:'FG_1001', demand_node:'DC_1', forecast_qty:1600, priority_class:'A' },
+      { sku_id:'FG_1002', demand_node:'DC_1', forecast_qty:1120, priority_class:'B' },
+      { sku_id:'FG_1003', demand_node:'DC_1', forecast_qty:900, priority_class:'C' }
+    ],
+    'Inter Site Logistics':[
+      { lane_id:'LANE_01', sku_id:'FG_1001', source_plant:'PLANT_A', dest_plant:'DC_1', distance_km:900, expedite_lane_flag:'Y' },
+      { lane_id:'LANE_02', sku_id:'FG_1002', source_plant:'PLANT_B', dest_plant:'DC_1', distance_km:700, expedite_lane_flag:'N' }
+    ],
+    'Capacity':[
+      { plant:'PLANT_A', workcenter:'WC_PACK', time_bucket_date:'2026-03-16', available_capacity_hours:320, planned_load_hours:380, utilization:1.19, overtime_cost_per_hour:45, max_overtime_pct:.1 },
+      { plant:'PLANT_B', workcenter:'WC_ASM', time_bucket_date:'2026-03-16', available_capacity_hours:420, planned_load_hours:360, utilization:.86, overtime_cost_per_hour:40, max_overtime_pct:.15 },
+      { plant:'PLANT_C', workcenter:'WC_MIX', time_bucket_date:'2026-03-16', available_capacity_hours:300, planned_load_hours:270, utilization:.9, overtime_cost_per_hour:40, max_overtime_pct:.1 }
+    ],
+    'Inventory Policy':[
+      { sku_id:'FG_1001', plant:'DC_1', safety_stock_qty:600, reorder_point_qty:900, max_target_inventory_qty:3200 },
+      { sku_id:'FG_1002', plant:'DC_1', safety_stock_qty:450, reorder_point_qty:700, max_target_inventory_qty:2800 },
+      { sku_id:'FG_1003', plant:'DC_1', safety_stock_qty:500, reorder_point_qty:800, max_target_inventory_qty:3000 }
+    ],
+    'External Signals':[
+      { event_id:'EV_01', event_type:'port_congestion', severity_1_5:4, expected_delay_days:3, affected_node_type:'supplier', affected_node_id:'SUP_01', probability:.7 },
+      { event_id:'EV_02', event_type:'equipment_breakdown', severity_1_5:5, expected_delay_days:2, affected_node_type:'plant', affected_node_id:'PLANT_A', probability:.6 }
+    ],
+    'MRP_Tidy':[
+      { sku_id:'RM_3001', plant:'PLANT_A', projected_on_hand:-120, exception_message:'STOCKOUT' },
+      { sku_id:'RM_3002', plant:'PLANT_A', projected_on_hand:-90, exception_message:'STOCKOUT' },
+      { sku_id:'RM_3003', plant:'PLANT_B', projected_on_hand:80, exception_message:'' }
+    ],
+    'Run_Metadata':[
+      { snapshot_id:'2026-W12', scenario_name:'balanced' }
+    ],
+    'Run_Preferences':[
+      { mode:'Balanced' }
+    ]
+  };
+  app.rawOptional = {
+    'PO_Data':[
+      { po_id:'PO_0102', po_line_id:'10', supplier_id:'SUP_01', sku_id:'RM_3001', plant:'PLANT_A', promised_delivery_date:'2026-03-18', ordered_qty:1200, unit_purchase_cost:8.2 },
+      { po_id:'PO_0110', po_line_id:'10', supplier_id:'SUP_02', sku_id:'RM_3002', plant:'PLANT_A', promised_delivery_date:'2026-03-24', ordered_qty:700, unit_purchase_cost:6.1 },
+      { po_id:'PO_0116', po_line_id:'10', supplier_id:'SUP_03', sku_id:'RM_3005', plant:'PLANT_B', promised_delivery_date:'2026-03-21', ordered_qty:800, unit_purchase_cost:7.5 }
+    ],
+    'GRN_Data':[
+      { grn_id:'GRN_01', po_id:'PO_0102', po_line_id:'10', supplier_id:'SUP_01', sku_id:'RM_3001', plant:'PLANT_A', grn_posting_date:'2026-03-28', received_qty:1200, delivery_complete_flag:'Y' },
+      { grn_id:'GRN_02', po_id:'PO_0110', po_line_id:'10', supplier_id:'SUP_02', sku_id:'RM_3002', plant:'PLANT_A', grn_posting_date:'2026-04-03', received_qty:500, delivery_complete_flag:'N' },
+      { grn_id:'GRN_03', po_id:'PO_0116', po_line_id:'10', supplier_id:'SUP_03', sku_id:'RM_3005', plant:'PLANT_B', grn_posting_date:'2026-03-20', received_qty:800, delivery_complete_flag:'Y' }
+    ]
+  };
+  app.aiRecs = [];
+  clearSelection();
+  rebuildModel();
+}
+
+function parseAiJson(){
+  const raw = $('#aiJsonInput').value.trim();
+  if(!raw){
+    alert('Paste a recommendation JSON payload first.');
+    return;
+  }
+  try{
+    const parsed = JSON.parse(raw);
+    const recs = Array.isArray(parsed) ? parsed :
+      Array.isArray(parsed.recommendations) ? parsed.recommendations :
+      Array.isArray(parsed.actions) ? parsed.actions :
+      Object.values(parsed);
+    app.aiRecs = recs.map(r => ({
+      node: normalizeText(r.node,''),
+      action: normalizeText(r.action,'Recommendation'),
+      fill_rate_delta: normalizeText(r.fill_rate_delta,'+0.0%'),
+      cost_delta: normalizeText(r.cost_delta,'$0'),
+      confidence: normalizeText(r.confidence,''),
+      from_node: normalizeText(r.from_node,''),
+      to_node: normalizeText(r.to_node,'')
+    }));
+    matchAiRecommendations();
+    renderAll();
+    switchTab('ai');
+  }catch(err){
+    alert('Invalid JSON. Expected {"recommendations":[{"node":"PLANT_A","action":"Expedite PO_0004","fill_rate_delta":"+2.8%","cost_delta":"$7,600"}]}');
+  }
+}
+
+function copyPrompt(){
+  const text = `Use the uploaded SCNC workbook and return JSON only in this structure:
+{"recommendations":[
+  {"node":"PLANT_A","action":"Expedite PO_0004 from SUP_06","fill_rate_delta":"+2.8%","cost_delta":"$7,600","confidence":"0.82","from_node":"SUP_06","to_node":"PLANT_A"},
+  {"node":"DC_1","action":"Reposition 400 units from PLANT_B","fill_rate_delta":"+1.6%","cost_delta":"$2,200","confidence":"0.74","from_node":"PLANT_B","to_node":"DC_1"}
+]}`;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = $('#copyPromptBtn');
+    const prev = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => btn.textContent = prev, 1100);
+  });
+}
+
+function bindUi(){
+  $$('.nav-btn').forEach(btn => btn.onclick = () => switchTab(btn.dataset.tab));
+  $$('.mode-btn').forEach(btn => btn.onclick = () => setNetworkMode(btn.dataset.networkMode));
+  $$('.chip-btn').forEach(btn => btn.onclick = () => setEntityFilter(btn.dataset.filter));
+  $('#primaryInput').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    await loadPrimaryFile(file);
+  });
+  $('#optionalInput').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    await loadOptionalFile(file);
+  });
+  $('#demoBtn').onclick = loadDemo;
+  $('#openGptBtn').onclick = () => window.open(GPT_URL, '_blank');
+  $('#aiOpenBtn').onclick = () => window.open(GPT_URL, '_blank');
+  $('#applyAiBtn').onclick = parseAiJson;
+  $('#clearAiBtn').onclick = () => { app.aiRecs = []; matchAiRecommendations(); renderAll(); };
+  $('#copyPromptBtn').onclick = copyPrompt;
+  $('#clearSelectionBtn').onclick = clearSelection;
+  window.addEventListener('resize', resizeCharts);
+}
+
+bindUi();
+renderAll();
+</script>
+</body>
+</html>
