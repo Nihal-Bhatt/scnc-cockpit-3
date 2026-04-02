@@ -1729,6 +1729,41 @@ function buildNetworkLayout(visibleNodes, width, height){
   return { categories, positioned, xMap, leftPad, rightPad, topPad, bottomPad };
 }
 
+
+// ── Chart helpers (setChart + chartOptionBase) ─────────────────────────────
+function chartOptionBase(){
+  return {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(14,20,32,.94)',
+      borderColor: 'rgba(255,255,255,.12)',
+      borderWidth: 1,
+      textStyle: { color: '#dde3ef', fontSize: 12 }
+    },
+    grid: { left: 52, right: 18, top: 22, bottom: 44, containLabel: false }
+  };
+}
+
+function setChart(id, option){
+  const dom = document.getElementById(id);
+  if(!dom) return;
+  let chart = app.charts[id];
+  if(!chart){
+    chart = echarts.init(dom, null, { renderer: 'canvas' });
+    app.charts[id] = chart;
+    chart.on('click', function(params){
+      if(params.data && params.data.nodeId){
+        app.selectedNodeId = params.data.nodeId;
+        app.selectedRiskId = null;
+        renderAll();
+      }
+    });
+  }
+  chart.setOption(option, true);
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 function renderNetwork(){
   const dom = $('#networkChart');
   if(!app.charts.network) app.charts.network = echarts.init(dom);
