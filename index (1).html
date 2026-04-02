@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SCNC Cockpit — Supply Chain Nerve Center</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* =============================================
+   SCNC COCKPIT — Global Styles
+   ============================================= */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:     #090d13;
+  --bg2:    #0e1420;
+  --bg3:    #131a26;
+  --bg4:    #1a2133;
+  --border: rgba(255,255,255,0.07);
+  --border2:rgba(255,255,255,0.13);
+  --text:   #dde3ef;
+  --text2:  #7a8799;
+  --text3:  #3d4a5c;
+  --amber:  #f0a500;
+  --amber2: #fbbf24;
+  --teal:   #00c9a7;
+  --red:    #f05252;
+  --red2:   #fc8181;
+  --blue:   #4a9eff;
+  --green:  #34d399;
+  --purple: #a78bfa;
+  --mono:   'Space Mono', monospace;
+  --sans:   'DM Sans', sans-serif;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* =============================================
+   LAYOUT
+   ============================================= */
+.app {
+  display: grid;
+  grid-template-rows: 52px 1fr;
+  height: 100vh;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* =============================================
+   TOP BAR
+   ============================================= */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  gap: 16px;
+  z-index: 20;
+}
+
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+
+.logo {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+.logo span { color: var(--amber); }
+
+.snapshot-pill {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(0,201,167,0.08);
+  border: 1px solid rgba(0,201,167,0.15);
+  color: var(--teal);
+}
+
+.live-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--teal);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+
+.tb-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.tb-btn:hover, .tb-btn.active {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: rgba(240,165,0,0.06);
+}
+.tb-btn.primary {
+  background: var(--amber);
+  color: #090d13;
+  border-color: var(--amber);
+  font-weight: 700;
+}
+.tb-btn.primary:hover { background: var(--amber2); }
+
+/* =============================================
+   NETWORK CANVAS AREA
+   ============================================= */
+.network-wrap {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.network-canvas { display: block; }
+
+/* Node tooltip */
+.node-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 14px 16px;
+  min-width: 200px;
+  max-width: 260px;
+  transition: opacity .15s;
+  opacity: 0;
+  z-index: 50;
+}
+.node-tooltip.show { opacity: 1; }
+
+.tt-title { font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 4px; }
+.tt-type {
+  font-family: var(--mono); font-size: 10px; color: var(--text2);
+  margin-bottom: 10px; text-transform: uppercase; letter-spacing: .5px;
+}
+.tt-divider { height: 1px; background: var(--border); margin: 8px 0; }
+.tt-row {
+  display: flex; justify-content: space-between;
+  font-size: 12px; color: var(--text2); margin-bottom: 4px;
+}
+.tt-row span:last-child { color: var(--text); font-weight: 500; }
+.tt-row.red  span:last-child { color: var(--red2); }
+.tt-row.amber span:last-child { color: var(--amber2); }
+.tt-row.green span:last-child { color: var(--green); }
+.tt-risk {
+  font-size: 11px; padding: 5px 9px; border-radius: 6px;
+  margin-top: 6px; line-height: 1.4;
+}
+.tt-risk.critical { background: rgba(240,82,82,.1); color: var(--red2); border: 1px solid rgba(240,82,82,.15); }
+.tt-risk.high     { background: rgba(240,165,0,.08); color: var(--amber2); border: 1px solid rgba(240,165,0,.15); }
+.tt-risk.ok       { background: rgba(52,211,153,.08); color: var(--green); border: 1px solid rgba(52,211,153,.12); }
+
+/* Upload overlay */
+.upload-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  z-index: 10; flex-direction: column; gap: 16px;
+}
+.upload-box {
+  border: 1.5px dashed var(--border2);
+  border-radius: 16px;
+  padding: 48px 56px;
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+  transition: all .2s;
+  background: var(--bg2);
+}
+.upload-box:hover, .upload-box.over {
+  border-color: var(--amber);
+  background: rgba(240,165,0,0.03);
+}
+.upload-box input {
+  position: absolute; inset: 0;
+  opacity: 0; cursor: pointer;
+  width: 100%; height: 100%;
+}
+.upload-icon-ring {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  border: 2px solid rgba(240,165,0,0.3);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+}
+.upload-title { font-weight: 600; font-size: 17px; color: var(--text); margin-bottom: 6px; }
+.upload-sub { font-size: 13px; color: var(--text2); }
+.upload-hint {
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+  margin-top: 8px;
+}
+.upload-demo-btn {
+  font-family: var(--mono); font-size: 11px;
+  padding: 8px 20px; border-radius: 8px;
+  border: 1px solid rgba(0,201,167,0.25);
+  background: transparent; color: var(--teal);
+  cursor: pointer; transition: all .15s;
+}
+.upload-demo-btn:hover { background: rgba(0,201,167,0.06); }
+
+/* =============================================
+   RIGHT PANEL — Tabbed redesign
+   ============================================= */
+.right-panel {
+  display: flex; flex-direction: column;
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--bg2);
+  width: 360px;
+}
+
+/* Tab nav */
+.rp-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg2);
+}
+.rp-tab {
+  flex: 1; padding: 12px 6px;
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: .6px; text-transform: uppercase;
+  color: var(--text3); border: none; background: transparent;
+  cursor: pointer; transition: all .15s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.rp-tab:hover { color: var(--text2); }
+.rp-tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+
+/* Tab panes */
+.rp-pane { display: none; flex: 1; overflow-y: auto; min-height: 0; flex-direction: column; }
+.rp-pane.active { display: flex; flex-direction: column; }
+
+/* ---- TAB 1: KPIs ---- */
+.kpi-grid-2x2 {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; padding: 14px 14px 0;
+  flex-shrink: 0;
+}
+.kpi-card {
+  border-radius: 12px; padding: 14px;
+  border: 1px solid var(--border);
+  position: relative; overflow: hidden;
+}
+.kpi-card::after {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  border-radius: 12px 12px 0 0;
+}
+.kpi-card.c-green  { background: rgba(52,211,153,0.06);  border-color: rgba(52,211,153,0.15);  }
+.kpi-card.c-green::after  { background: var(--green);  }
+.kpi-card.c-amber  { background: rgba(251,191,36,0.06);  border-color: rgba(251,191,36,0.15);  }
+.kpi-card.c-amber::after  { background: var(--amber2); }
+.kpi-card.c-red    { background: rgba(252,129,129,0.06); border-color: rgba(252,129,129,0.15); }
+.kpi-card.c-red::after    { background: var(--red2);   }
+.kpi-card.c-blue   { background: rgba(74,158,255,0.06);  border-color: rgba(74,158,255,0.15);  }
+.kpi-card.c-blue::after   { background: var(--blue);   }
+.kpi-card.c-teal   { background: rgba(0,201,167,0.06);   border-color: rgba(0,201,167,0.15);   }
+.kpi-card.c-teal::after   { background: var(--teal);   }
+.kpi-card.c-purple { background: rgba(167,139,250,0.06); border-color: rgba(167,139,250,0.15); }
+.kpi-card.c-purple::after { background: var(--purple); }
+.kpi-card-label { font-size: 10px; color: var(--text2); margin-bottom: 6px; font-weight: 500; }
+.kpi-card-val {
+  font-family: var(--mono); font-size: 26px; font-weight: 700;
+  line-height: 1; margin-bottom: 4px;
+}
+.kpi-card.c-green  .kpi-card-val { color: var(--green);  }
+.kpi-card.c-amber  .kpi-card-val { color: var(--amber2); }
+.kpi-card.c-red    .kpi-card-val { color: var(--red2);   }
+.kpi-card.c-blue   .kpi-card-val { color: var(--blue);   }
+.kpi-card.c-teal   .kpi-card-val { color: var(--teal);   }
+.kpi-card.c-purple .kpi-card-val { color: var(--purple); }
+.kpi-card-sub { font-size: 10px; color: var(--text3); line-height: 1.4; }
+
+/* Fill rate chart block */
+.fr-chart-block {
+  margin: 14px 14px 0;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  flex-shrink: 0;
+}
+.fr-chart-title {
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  color: var(--text3); letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.fr-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.fr-bar-row:last-child { margin-bottom: 0; }
+.fr-bar-lbl { font-size: 10px; color: var(--text2); min-width: 94px; }
+.fr-bar-track { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+.fr-bar-fill { height: 100%; border-radius: 4px; transition: width 1s ease; }
+.fr-bar-pct { font-family: var(--mono); font-size: 11px; font-weight: 700; min-width: 34px; text-align: right; }
+
+/* Cost row */
+.cost-row-block {
+  margin: 14px 14px 14px;
+  background: var(--bg3);
+  border: 1px solid rgba(252,129,129,0.15);
+  border-radius: 12px;
+  padding: 14px;
+  flex-shrink: 0;
+}
+.cost-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; }
+.cost-row:last-child { margin-bottom: 0; }
+.cost-lbl { color: var(--text2); }
+.cost-val { font-family: var(--mono); font-weight: 700; }
+.cost-val.red   { color: var(--red2); }
+.cost-val.amber { color: var(--amber2); }
+.cost-val.green { color: var(--green); }
+.cost-divider   { height: 1px; background: var(--border); margin: 8px 0; }
+.cost-total-lbl { font-size: 13px; font-weight: 600; color: var(--text); }
+.cost-total-val { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--red2); }
+
+/* ---- TAB 2: RISKS ---- */
+.risk-feed { flex: 1; overflow-y: auto; padding: 12px 14px; min-height: 0; }
+.risk-item {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px;
+  margin-bottom: 8px; cursor: pointer; transition: all .15s;
+}
+.risk-item:hover { border-color: var(--border2); transform: translateX(2px); }
+.risk-item.selected { border-color: var(--amber); background: rgba(240,165,0,0.04); }
+.ri-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.sev-badge {
+  font-family: var(--mono); font-size: 8px; font-weight: 700;
+  padding: 3px 8px; border-radius: 4px; letter-spacing: .5px;
+}
+.sev-badge.critical { background: rgba(240,82,82,.15);  color: var(--red2);   border: 1px solid rgba(240,82,82,.25); }
+.sev-badge.high     { background: rgba(240,165,0,.12);  color: var(--amber2); border: 1px solid rgba(240,165,0,.22); }
+.sev-badge.medium   { background: rgba(74,158,255,.10); color: var(--blue);   border: 1px solid rgba(74,158,255,.2); }
+.sev-badge.low      { background: rgba(52,211,153,.08); color: var(--green);  border: 1px solid rgba(52,211,153,.15);}
+.ri-title { font-size: 12px; font-weight: 600; color: var(--text); flex: 1; }
+.ri-lines { margin-bottom: 8px; }
+.ri-line  { display: flex; gap: 6px; font-size: 11px; margin-bottom: 3px; }
+.ri-line-lbl { font-family: var(--mono); font-size: 9px; font-weight: 700; color: var(--text3); min-width: 60px; letter-spacing: .3px; text-transform: uppercase; padding-top: 1px; }
+.ri-line-val { color: var(--text2); line-height: 1.45; flex: 1; }
+.ri-nodes { display: flex; flex-wrap: wrap; gap: 4px; }
+.ri-node-tag {
+  font-family: var(--mono); font-size: 9px;
+  padding: 2px 8px; border-radius: 4px;
+  background: var(--bg4); color: var(--text2); border: 1px solid var(--border);
+}
+
+/* ---- TAB 3: AI RECOMMENDATIONS ---- */
+.ai-pane-inner { padding: 14px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.ai-hint {
+  background: rgba(0,201,167,0.06); border: 1px solid rgba(0,201,167,0.15);
+  border-radius: 10px; padding: 12px 14px; font-size: 11px;
+  color: var(--teal); line-height: 1.6;
+}
+.ai-prompt-box {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px;
+}
+.ai-prompt-label { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+.ai-prompt-text {
+  font-size: 11px; color: var(--text2); line-height: 1.6;
+  font-style: italic;
+  background: var(--bg2); border-radius: 6px; padding: 8px 10px;
+  border: 1px solid var(--border);
+  user-select: all; cursor: text;
+}
+.gpt-open-btn {
+  width: 100%; padding: 11px;
+  background: var(--amber); color: #090d13;
+  border: none; border-radius: 10px;
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: all .15s; letter-spacing: .5px;
+}
+.gpt-open-btn:hover { background: var(--amber2); }
+.ai-json-label { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; }
+.gpt-area {
+  width: 100%;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 10px 12px;
+  color: var(--text); font-family: var(--sans); font-size: 11px;
+  resize: none; outline: none; height: 80px;
+  transition: border-color .15s; line-height: 1.5;
+}
+.gpt-area:focus { border-color: var(--teal); }
+.gpt-area::placeholder { color: var(--text3); }
+.apply-btn {
+  width: 100%; padding: 10px;
+  background: rgba(0,201,167,0.1); color: var(--teal);
+  border: 1px solid rgba(0,201,167,0.25); border-radius: 10px;
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: all .15s; letter-spacing: .3px;
+}
+.apply-btn:hover { background: rgba(0,201,167,0.18); border-color: var(--teal); }
+.rec-cards { display: flex; flex-direction: column; gap: 8px; }
+.rec-card {
+  background: var(--bg3); border: 1px solid rgba(0,201,167,0.2);
+  border-radius: 10px; padding: 12px 14px;
+}
+.rec-card-node { font-family: var(--mono); font-size: 10px; color: var(--teal); margin-bottom: 4px; }
+.rec-card-action { font-size: 12px; color: var(--text); margin-bottom: 6px; font-weight: 500; }
+.rec-card-metrics { display: flex; gap: 8px; }
+.rec-metric { font-family: var(--mono); font-size: 10px; padding: 2px 8px; border-radius: 4px; }
+.rec-metric.fr  { background: rgba(52,211,153,.1); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
+.rec-metric.cost{ background: rgba(240,165,0,.1); color: var(--amber2); border: 1px solid rgba(240,165,0,.2); }
+
+/* panel label shared */
+.panel-label {
+  font-family: var(--mono); font-size: 9px; color: var(--text3);
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;
+}
+
+/* Legend */
+.legend {
+  position: absolute;
+  bottom: 16px; left: 16px;
+  display: flex; gap: 16px;
+  background: rgba(9,13,19,0.85);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text2); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">SC<span>NC</span> NERVE CENTER</div>
+      <div class="snapshot-pill" id="snapPill">NO DATA</div>
+      <div class="live-dot" id="liveDot" style="opacity:.3"></div>
+    </div>
+    <div class="topbar-right">
+      <button class="tb-btn active" onclick="setMode('network')">Network Map</button>
+      <button class="tb-btn" onclick="setMode('financial')">Financial Impact</button>
+      <button class="tb-btn primary" id="gptBtn" onclick="openGPT()">Open in ChatGPT →</button>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="body">
+
+    <!-- NETWORK CANVAS -->
+    <div class="network-wrap" id="networkWrap">
+      <canvas class="network-canvas" id="netCanvas"></canvas>
+      <div class="node-tooltip" id="tooltip"></div>
+
+      <!-- Legend -->
+      <div class="legend" id="legend" style="display:none;">
+        <div class="legend-item"><div class="legend-dot" style="background:#f05252;box-shadow:0 0 6px rgba(240,82,82,.5)"></div>Critical</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f0a500"></div>High risk</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#4a9eff"></div>Medium</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#3d4a5c"></div>OK</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#00c9a7;box-shadow:0 0 6px rgba(0,201,167,.5)"></div>AI Rec</div>
+      </div>
+
+      <!-- Upload overlay -->
+      <div class="upload-overlay" id="uploadOverlay">
+        <div class="upload-box" id="uploadBox">
+          <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFile(this.files[0])">
+          <div class="upload-icon-ring">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f0a500" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <div class="upload-title">Upload SCNC Workbook</div>
+          <div class="upload-sub">Drag & drop or click — accepts .xlsx</div>
+          <div class="upload-hint">Tabs: SKU Master · BOM · Inventory · POs · Forecast · Capacity</div>
+        </div>
+        <button class="upload-demo-btn" onclick="loadDemo()">Load demo network →</button>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL — tabbed -->
+    <div class="right-panel">
+
+      <!-- Tab nav -->
+      <div class="rp-tabs">
+        <button class="rp-tab active" onclick="switchTab('kpi',this)">KPIs</button>
+        <button class="rp-tab" onclick="switchTab('risks',this)">Risks</button>
+        <button class="rp-tab" onclick="switchTab('ai',this)">AI Recs</button>
+      </div>
+
+      <!-- TAB 1: KPIs -->
+      <div class="rp-pane active" id="pane-kpi">
+
+        <!-- 2x2 KPI cards -->
+        <div class="kpi-grid-2x2" id="kpiCards">
+          <div class="kpi-card c-teal">
+            <div class="kpi-card-label">Fill Rate Plant W+4</div>
+            <div class="kpi-card-val" id="kpi-fr-plant">—</div>
+            <div class="kpi-card-sub" id="kpi-fr-plant-sub">W+8 / W+12</div>
+          </div>
+          <div class="kpi-card c-blue">
+            <div class="kpi-card-label">Fill Rate Network W+4</div>
+            <div class="kpi-card-val" id="kpi-fr-net">—</div>
+            <div class="kpi-card-sub" id="kpi-fr-net-sub">W+8 / W+12</div>
+          </div>
+          <div class="kpi-card c-red">
+            <div class="kpi-card-label">Stockout Nodes</div>
+            <div class="kpi-card-val" id="kpi-stockout">—</div>
+            <div class="kpi-card-sub" id="kpi-stockout-sub">SKU-Plant nodes</div>
+          </div>
+          <div class="kpi-card c-amber">
+            <div class="kpi-card-label">Late POs</div>
+            <div class="kpi-card-val" id="kpi-latepo">—</div>
+            <div class="kpi-card-sub" id="kpi-latepo-sub">Of open orders</div>
+          </div>
+          <div class="kpi-card c-purple">
+            <div class="kpi-card-label">Capacity Overloads</div>
+            <div class="kpi-card-val" id="kpi-overload">—</div>
+            <div class="kpi-card-sub">Overloaded weeks</div>
+          </div>
+          <div class="kpi-card c-green">
+            <div class="kpi-card-label">Excess Inventory</div>
+            <div class="kpi-card-val" id="kpi-excess">—</div>
+            <div class="kpi-card-sub">Above max target</div>
+          </div>
+        </div>
+
+        <!-- Fill rate horizon bars -->
+        <div class="fr-chart-block">
+          <div class="fr-chart-title">Fill rate horizon</div>
+          <div id="frBars"></div>
+        </div>
+
+        <!-- Cost block -->
+        <div class="cost-row-block">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">Financial impact</div>
+          <div class="cost-row">
+            <span class="cost-lbl">Lost-sales exposure</span>
+            <span class="cost-val red"  id="fi-lost">—</span>
+          </div>
+          <div class="cost-row">
+            <span class="cost-lbl">Expedite cost est.</span>
+            <span class="cost-val amber" id="fi-exp">—</span>
+          </div>
+          <div class="cost-row">
+            <span class="cost-lbl">Overtime cost est.</span>
+            <span class="cost-val amber" id="fi-ot">—</span>
+          </div>
+          <div class="cost-divider"></div>
+          <div class="cost-row">
+            <span class="cost-total-lbl">Total cost at risk</span>
+            <span class="cost-total-val" id="fi-total">—</span>
+          </div>
+        </div>
+
+      </div><!-- end pane-kpi -->
+
+      <!-- TAB 2: RISKS -->
+      <div class="rp-pane" id="pane-risks">
+        <div style="padding:10px 14px 0;font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;flex-shrink:0;">
+          Click risk to highlight network
+        </div>
+        <div class="risk-feed" id="riskFeed">
+          <div style="font-size:12px;color:var(--text3);padding:32px 0;text-align:center;">
+            Upload workbook or load demo
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: AI RECS -->
+      <div class="rp-pane" id="pane-ai">
+        <div class="ai-pane-inner">
+
+          <div class="ai-hint">
+            Open your SCNC agent in ChatGPT, run the analysis, then ask it to format recommendations as JSON and paste below.
+          </div>
+
+          <div class="ai-prompt-box">
+            <div class="ai-prompt-label">Copy this prompt into ChatGPT</div>
+            <div class="ai-prompt-text" id="aiPromptText">Format your top recommendations as JSON:
+{"recommendations":[{"node":"Plant-A","action":"Expedite PO_102","fill_rate_delta":"+4.2%","cost_delta":"$8,400"}]}</div>
+          </div>
+
+          <button class="gpt-open-btn" onclick="openGPT()">Open SCNC Agent in ChatGPT →</button>
+
+          <div>
+            <div class="ai-json-label" style="margin-bottom:6px;">Paste JSON response here</div>
+            <textarea class="gpt-area" id="gptJsonInput"
+              placeholder='{"recommendations":[{"node":"Plant-A","action":"Expedite PO_102","fill_rate_delta":"+4.2%","cost_delta":"$8,400"}]}'></textarea>
+          </div>
+
+          <button class="apply-btn" onclick="importGPTRecs()">Apply Recommendations to Network</button>
+
+          <!-- Applied recs display -->
+          <div id="recCards" class="rec-cards"></div>
+
+        </div>
+      </div>
+
+    </div><!-- end right-panel -->
+  </div><!-- end body -->
+</div><!-- end app -->
+
+<script>
+/* =============================================
+   SCNC COCKPIT — Application Logic
+   =============================================
+   SETUP: Replace GPT_URL with your Custom GPT link.
+   Find it on chatgpt.com → your GPT → "Share" → copy link.
+   ============================================= */
+const GPT_URL = 'https://chatgpt.com/g/YOUR-GPT-ID-HERE';
+
+let networkData  = null;
+let recs         = [];
+let selectedRisk = null;
+let mode         = 'network';
+let nodePositions= {};
+let animTimer    = null;
+
+/* ---- MODE TOGGLE ---- */
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.tb-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['network', 'financial'][i] === m);
+  });
+  if (networkData) drawNetwork();
+}
+
+function openGPT() { window.open(GPT_URL, '_blank'); }
+
+/* ---- TAB SWITCHER ---- */
+function switchTab(name, btn) {
+  document.querySelectorAll('.rp-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.rp-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('pane-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ---- FILE HANDLING ---- */
+const uploadBox = document.getElementById('uploadBox');
+uploadBox.addEventListener('dragover',  e => { e.preventDefault(); uploadBox.classList.add('over'); });
+uploadBox.addEventListener('dragleave', () => uploadBox.classList.remove('over'));
+uploadBox.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadBox.classList.remove('over');
+  handleFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
+      const parsed = {};
+      wb.SheetNames.forEach(n => {
+        parsed[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: null });
+      });
+      buildNetworkFromData(parsed);
+    } catch (err) {
+      alert('Could not parse workbook: ' + err.message + '\n\nMake sure it is a valid .xlsx file.');
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+/* ---- FIELD HELPERS ---- */
+function getField(row, ...candidates) {
+  for (const k of Object.keys(row)) {
+    const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+    for (const c of candidates) {
+      const nc = c.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (nk === nc || nk.includes(nc)) {
+        if (row[k] !== null && row[k] !== undefined && row[k] !== '') return row[k];
+      }
+    }
+  }
+  return null;
+}
+
+function findTab(parsed, name) {
+  const synonyms = {
+    'SKU Master':           ['skumaster', 'sku_master', 'skus', 'itemmaster'],
+    'BOM':                  ['bom', 'billofmaterials'],
+    'Inventory':            ['inventory', 'stock', 'inv'],
+    'Purchase Orders':      ['purchaseorders', 'purchase_orders', 'pos', 'po'],
+    'Production Orders':    ['productionorders', 'production_orders', 'mos', 'mo'],
+    'Forecast':             ['forecast', 'demand'],
+    'Capacity':             ['capacity', 'cap'],
+    'Inventory Policy':     ['inventorypolicy', 'inventory_policy', 'policy'],
+    'Run_Metadata':         ['run_metadata', 'runmetadata', 'metadata'],
+    'Inter Site Logistics': ['intersitelogistics', 'logistics', 'lanes'],
+    'External Signals':     ['externalsignals', 'external_signals', 'disruptions'],
+  };
+  const v = synonyms[name] || [name.toLowerCase().replace(/\s/g, '')];
+  for (const k of Object.keys(parsed)) {
+    const nk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (v.some(x => nk === x || nk.includes(x))) return parsed[k];
+  }
+  return null;
+}
+
+function toNum(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+
+/* ---- NETWORK BUILD FROM EXCEL DATA ---- */
+function buildNetworkFromData(parsed) {
+  const meta     = findTab(parsed, 'Run_Metadata') || [];
+  const skus     = findTab(parsed, 'SKU Master')   || [];
+  const inv      = findTab(parsed, 'Inventory')    || [];
+  const pos      = findTab(parsed, 'Purchase Orders') || [];
+  const cap      = findTab(parsed, 'Capacity')     || [];
+  const pol      = findTab(parsed, 'Inventory Policy') || [];
+  const fcast    = findTab(parsed, 'Forecast')     || [];
+  const lanes    = findTab(parsed, 'Inter Site Logistics') || [];
+  const ext      = findTab(parsed, 'External Signals') || [];
+
+  const snapId = meta.length > 0
+    ? (getField(meta[meta.length - 1], 'snapshot_id', 'SnapshotID') || 'W-CURRENT')
+    : 'W-CURRENT';
+
+  /* Plants */
+  const plants = new Set();
+  [inv, cap, fcast].forEach(tab =>
+    tab.forEach(r => { const p = getField(r, 'plant', 'Plant', 'Site'); if (p) plants.add(p); })
+  );
+
+  /* Suppliers */
+  const suppliers = new Set();
+  pos.forEach(r => { const s = getField(r, 'supplier_id', 'SupplierID', 'Supplier'); if (s) suppliers.add(s); });
+
+  /* Inventory map */
+  const invMap = {};
+  inv.forEach(r => {
+    const sku   = getField(r, 'sku_id', 'SKU', 'Material') || '';
+    const plant = getField(r, 'plant',  'Plant', 'Site')    || '';
+    const qty   = toNum(getField(r, 'qty', 'quantity', 'Qty'));
+    const key   = `${sku}|${plant}`;
+    invMap[key] = (invMap[key] || 0) + qty;
+  });
+
+  /* Policy map */
+  const polMap = {};
+  pol.forEach(r => {
+    const sku   = getField(r, 'sku_id', 'SKU', 'Material') || '';
+    const plant = getField(r, 'plant',  'Plant', 'Site')    || '';
+    const ss    = toNum(getField(r, 'safety_stock_qty', 'safety_stock', 'SafetyStock'));
+    polMap[`${sku}|${plant}`] = ss;
+  });
+
+  /* Late POs */
+  const today = new Date();
+  let latePOCount = 0;
+  const lateByPlant = {};
+  const latePOList  = [];
+  pos.forEach(r => {
+    const plant    = getField(r, 'plant', 'Plant', 'Site') || '?';
+    const poId     = getField(r, 'po_id', 'PO_ID', 'POID') || '—';
+    const sku      = getField(r, 'sku_id', 'SKU', 'Material') || '—';
+    const qty      = toNum(getField(r, 'qty', 'quantity', 'Qty'));
+    const promised = getField(r, 'promised_arrival_date', 'ETA', 'Delivery Date');
+    const updated  = getField(r, 'updated_arrival_date', 'Revised ETA');
+    let delayDays  = 0;
+    if (promised && updated) {
+      delayDays = Math.round((new Date(updated) - new Date(promised)) / 86400000);
+    } else if (promised) {
+      delayDays = Math.round((today - new Date(promised)) / 86400000);
+    }
+    if (delayDays > 7) {
+      latePOCount++;
+      lateByPlant[plant] = (lateByPlant[plant] || 0) + 1;
+      latePOList.push({ poId, sku, plant, qty: Math.round(qty), delayDays });
+    }
+  });
+
+  /* Capacity overloads per plant */
+  const overloadByPlant = {};
+  cap.forEach(r => {
+    const plant = getField(r, 'plant', 'Plant', 'Site') || '?';
+    const avail = toNum(getField(r, 'available_capacity', 'Capacity', 'Available Hours'));
+    const load  = toNum(getField(r, 'planned_load', 'Required Hours', 'Planned Load'));
+    if (avail > 0 && load > avail) {
+      overloadByPlant[plant] = (overloadByPlant[plant] || 0) + 1;
+    }
+  });
+
+  /* Stockouts per plant */
+  const stockoutByPlant = {};
+  let ssBreaches = 0;
+  Object.entries(invMap).forEach(([key, qty]) => {
+    const [sku, plant] = key.split('|');
+    const ss = polMap[key] || 0;
+    if (qty <= 0 || (ss > 0 && qty < ss * 0.3)) {
+      stockoutByPlant[plant] = (stockoutByPlant[plant] || 0) + 1;
+    }
+    if (ss > 0 && qty < ss) ssBreaches++;
+  });
+
+  /* External signals */
+  const extEvents = ext.map(r => ({
+    type: getField(r, 'event_type', 'EventType') || 'disruption',
+    node: getField(r, 'affected_node_id', 'affected_node', 'AffectedNode') || '',
+    sev:  (getField(r, 'severity', 'Severity') || 'medium').toLowerCase()
+  }));
+
+  /* CM for lost-sales */
+  const totalCM = skus.reduce((s, r) =>
+    s + toNum(getField(r, 'contribution_margin_per_unit', 'Contribution Margin', 'CM/unit')), 0);
+
+  /* ---- BUILD NODES ---- */
+  const nodes = [];
+  const edges = [];
+  const plantList    = [...plants].slice(0, 6);
+  const supplierList = [...suppliers].slice(0, 5);
+
+  if (supplierList.length === 0 && pos.length > 0) {
+    supplierList.push('Supplier-A', 'Supplier-B');
+  }
+
+  /* Supplier nodes (tier 0) */
+  supplierList.forEach((s, i) => {
+    const hasLate = (lateByPlant[s] || 0) > 0;
+    const hasExt  = extEvents.some(e => e.node === s);
+    const risk    = hasExt ? 'critical' : hasLate ? 'high' : 'ok';
+    nodes.push({
+      id: 'sup_' + s, label: s, type: 'SUPPLIER', risk,
+      tier: 0, idx: i, total: supplierList.length,
+      details: { latePOs: lateByPlant[s] || 0, events: extEvents.filter(e => e.node === s).length }
+    });
+  });
+
+  /* Plant nodes (tier 1) */
+  plantList.forEach((p, i) => {
+    const so = stockoutByPlant[p] || 0;
+    const ol = overloadByPlant[p] || 0;
+    const lp = lateByPlant[p]    || 0;
+    const risk = (so >= 3 || ol >= 3) ? 'critical'
+               : (so >= 1 || ol >= 1 || lp >= 2) ? 'high'
+               : lp >= 1 ? 'medium' : 'ok';
+    const totalInv = Object.entries(invMap)
+      .filter(([k]) => k.endsWith('|' + p))
+      .reduce((s, [, v]) => s + v, 0);
+    const fillRate = Math.max(50, Math.round(94 - so * 8 - ol * 4));
+    nodes.push({
+      id: 'plt_' + p, label: p, type: 'PLANT', risk,
+      tier: 1, idx: i, total: plantList.length,
+      details: { stockouts: so, overloads: ol, latePOs: lp, fillRate, inv: Math.round(totalInv) }
+    });
+  });
+
+  /* DC nodes (tier 2) */
+  const dcSet = new Set();
+  lanes.forEach(r => {
+    const dest = getField(r, 'dest_plant', 'DestPlant', 'Destination');
+    if (dest && !plantList.includes(dest)) dcSet.add(dest);
+  });
+  if (dcSet.size === 0) {
+    plantList.slice(0, 3).forEach((p, i) => dcSet.add('DC-' + (i + 1)));
+  }
+  const dcList = [...dcSet].slice(0, 4);
+  dcList.forEach((d, i) => {
+    nodes.push({
+      id: 'dc_' + d, label: d, type: 'DC', risk: 'ok',
+      tier: 2, idx: i, total: dcList.length,
+      details: { transfers: lanes.filter(r => getField(r, 'dest_plant', 'DestPlant', 'Destination') === d).length }
+    });
+  });
+
+  /* Market nodes (tier 3) */
+  const markets = ['Market-Domestic', 'Market-Export', 'Market-Regional'];
+  markets.forEach((m, i) => {
+    nodes.push({ id: 'mkt_' + m, label: m, type: 'MARKET', risk: 'ok', tier: 3, idx: i, total: 3, details: {} });
+  });
+
+  /* ---- EDGES ---- */
+  const plantNodes    = nodes.filter(n => n.type === 'PLANT');
+  const supplierNodes = nodes.filter(n => n.type === 'SUPPLIER');
+  const dcNodes       = nodes.filter(n => n.type === 'DC');
+  const marketNodes   = nodes.filter(n => n.type === 'MARKET');
+
+  supplierNodes.forEach(sn => {
+    plantNodes.forEach(pn => {
+      if (Math.random() > 0.35) {
+        const hasLate = (lateByPlant[pn.label] || 0) > 0;
+        edges.push({ from: sn.id, to: pn.id, risk: sn.risk === 'critical' || hasLate ? 'high' : 'ok' });
+      }
+    });
+  });
+  plantNodes.forEach(pn => {
+    dcNodes.forEach(dc => {
+      if (Math.random() > 0.3) edges.push({ from: pn.id, to: dc.id, risk: pn.risk === 'critical' ? 'high' : 'ok' });
+    });
+  });
+  dcNodes.forEach(dc => {
+    marketNodes.forEach(mk => {
+      if (Math.random() > 0.4) edges.push({ from: dc.id, to: mk.id, risk: 'ok' });
+    });
+  });
+
+  /* ---- AGGREGATE KPIs ---- */
+  const totalStockouts = Object.values(stockoutByPlant).reduce((a, b) => a + b, 0);
+  const avgFR = plantNodes.length > 0
+    ? plantNodes.reduce((s, n) => s + (n.details.fillRate || 90), 0) / plantNodes.length
+    : 90;
+  const frPlant = Math.round(avgFR);
+  const frNet   = Math.round(avgFR - 3);
+
+  const lostSales = totalStockouts > 0 && totalCM > 0
+    ? '$' + Math.round(totalCM * totalStockouts * 8 / 1000) + 'K' : 'N/A';
+  const expCost = latePOCount > 0 ? '$' + Math.round(latePOCount * 3.5) + 'K' : '$0';
+  const otTotal = Object.values(overloadByPlant).reduce((a, b) => a + b, 0);
+  const otCost  = otTotal > 0 ? '$' + Math.round(otTotal * 2.8) + 'K' : '$0';
+
+  /* ---- RISKS ---- */
+  const risks = [];
+  if (totalStockouts > 0) {
+    risks.push({
+      sev: totalStockouts >= 5 ? 'critical' : 'high',
+      title: `Material stockout — ${totalStockouts} SKU-Plant node${totalStockouts > 1 ? 's' : ''}`,
+      body: `FG-Plant fill rate ${frPlant}% in W+4. Insufficient on-hand stock detected.`,
+      cause: `${ssBreaches > 0 ? ssBreaches + ' safety-stock breach(es). ' : ''}Check inbound receipts and BOM dependencies.`,
+      action: 'Expedite inbound POs or reposition inventory. Run "optimize service" in ChatGPT agent.',
+      nodes: plantNodes.filter(n => (stockoutByPlant[n.label] || 0) > 0).slice(0, 4).map(n => n.label),
+      highlight: plantNodes.filter(n => (stockoutByPlant[n.label] || 0) > 0).map(n => n.id)
+    });
+  }
+  if (latePOCount > 0) {
+    risks.push({
+      sev: latePOCount >= 4 ? 'high' : 'medium',
+      title: `${latePOCount} late inbound PO${latePOCount > 1 ? 's' : ''}`,
+      body: `POs past 7-day delay threshold. At-risk supply may miss demand windows.`,
+      cause: `${latePOList.slice(0, 2).map(p => p.poId + ' (+' + p.delayDays + 'd)').join(', ')}`,
+      action: 'Check expedite flags. Consider alternate supplier or inter-site reposition.',
+      nodes: Object.keys(lateByPlant).slice(0, 4),
+      highlight: Object.keys(lateByPlant).slice(0, 4).map(p => 'plt_' + p)
+    });
+  }
+  if (otTotal > 0) {
+    risks.push({
+      sev: otTotal >= 4 ? 'high' : 'medium',
+      title: `Capacity overload — ${otTotal} week${otTotal > 1 ? 's' : ''}`,
+      body: `Plant-workcenter buckets above available capacity.`,
+      cause: `${Object.entries(overloadByPlant).slice(0,2).map(([p,w])=>p+': '+w+' wk(s)').join(', ')}`,
+      action: 'Evaluate overtime headroom or defer non-critical production orders.',
+      nodes: Object.keys(overloadByPlant).slice(0, 4),
+      highlight: Object.keys(overloadByPlant).slice(0, 4).map(p => 'plt_' + p)
+    });
+  }
+  if (extEvents.length > 0) {
+    risks.push({
+      sev: 'high',
+      title: `${extEvents.length} external disruption signal${extEvents.length > 1 ? 's' : ''}`,
+      body: `Active events affecting supply nodes.`,
+      cause: extEvents.slice(0,2).map(e=>`${e.type} at ${e.node||'network'}`).join('; '),
+      action: 'Monitor for propagation to FG plants. Map affected lanes in ChatGPT agent.',
+      nodes: extEvents.slice(0, 3).map(e => e.node || 'Network'),
+      highlight: nodes.filter(n => extEvents.some(e => n.label.includes(e.node || ''))).map(n => n.id)
+    });
+  }
+  if (risks.length === 0) {
+    risks.push({
+      sev: 'low',
+      title: 'No critical constraints detected',
+      body: `Fill rate tracking at ${frPlant}% FG-Plant, ${frNet}% FG-Network for W+4.`,
+      cause: 'Current supply plan appears aligned with demand across the 12-week horizon.',
+      action: 'Monitor weekly and upload refreshed snapshot to track movement.',
+      nodes: plantList.slice(0, 3), highlight: []
+    });
+  }
+
+  networkData = { nodes, edges, risks, snapId, frPlant, frNet,
+    totalStockouts, latePOCount, lostSales, expCost, otCost, totalCM, overloadByPlant };
+  recs = [];
+  selectedRisk = null;
+
+  renderDashboard();
+  document.getElementById('uploadOverlay').style.display = 'none';
+  document.getElementById('legend').style.display = 'flex';
+  document.getElementById('liveDot').style.opacity = '1';
+  document.getElementById('snapPill').textContent = snapId;
+}
+
+/* ---- RENDER DASHBOARD ---- */
+function renderDashboard() {
+  const d = networkData;
+
+  /* ---- KPI CARDS ---- */
+  const frColor = v => v >= 90 ? 'c-teal' : v >= 75 ? 'c-amber' : 'c-red';
+  const frVal   = v => v >= 90 ? 'green'  : v >= 75 ? 'amber'   : 'red';
+
+  // Fill rate plant
+  const frpEl = document.getElementById('kpi-fr-plant');
+  frpEl.textContent = d.frPlant + '%';
+  frpEl.closest('.kpi-card').className = 'kpi-card ' + frColor(d.frPlant);
+  document.getElementById('kpi-fr-plant-sub').textContent = `W+8: ${Math.round(d.frPlant-6)}% · W+12: ${Math.round(d.frPlant-12)}%`;
+
+  // Fill rate network
+  const frnEl = document.getElementById('kpi-fr-net');
+  frnEl.textContent = d.frNet + '%';
+  frnEl.closest('.kpi-card').className = 'kpi-card ' + frColor(d.frNet);
+  document.getElementById('kpi-fr-net-sub').textContent = `W+8: ${Math.round(d.frNet-5)}% · W+12: ${Math.round(d.frNet-10)}%`;
+
+  // Stockouts
+  const soEl = document.getElementById('kpi-stockout');
+  soEl.textContent = d.totalStockouts;
+  soEl.closest('.kpi-card').className = 'kpi-card ' + (d.totalStockouts === 0 ? 'c-green' : d.totalStockouts < 5 ? 'c-amber' : 'c-red');
+  document.getElementById('kpi-stockout-sub').textContent = 'SKU-Plant nodes';
+
+  // Late POs
+  const lpEl = document.getElementById('kpi-latepo');
+  lpEl.textContent = d.latePOCount;
+  lpEl.closest('.kpi-card').className = 'kpi-card ' + (d.latePOCount === 0 ? 'c-green' : d.latePOCount < 4 ? 'c-amber' : 'c-red');
+  document.getElementById('kpi-latepo-sub').textContent = 'Of open orders';
+
+  // Capacity overloads
+  const olTotal = Object.values(d.overloadByPlant || {}).reduce((a,b)=>a+b,0);
+  const olEl = document.getElementById('kpi-overload');
+  if (olEl) {
+    olEl.textContent = olTotal;
+    olEl.closest('.kpi-card').className = 'kpi-card ' + (olTotal === 0 ? 'c-green' : olTotal < 3 ? 'c-purple' : 'c-red');
+  }
+  const exEl = document.getElementById('kpi-excess');
+  if (exEl) { exEl.textContent = '0'; }
+
+  /* ---- FILL RATE BARS ---- */
+  const bars = [
+    { l: 'FG-Plant W+4',    p: d.frPlant },
+    { l: 'FG-Plant W+8',    p: Math.round(d.frPlant - 6) },
+    { l: 'FG-Plant W+12',   p: Math.round(d.frPlant - 12) },
+    { l: 'FG-Network W+4',  p: d.frNet },
+    { l: 'FG-Network W+8',  p: Math.round(d.frNet - 5) },
+    { l: 'FG-Network W+12', p: Math.round(d.frNet - 10) }
+  ];
+  document.getElementById('frBars').innerHTML = bars.map(b => {
+    const p   = Math.max(0, b.p);
+    const col = p >= 90 ? '#34d399' : p >= 75 ? '#fbbf24' : '#fc8181';
+    return `<div class="fr-bar-row">
+      <span class="fr-bar-lbl">${b.l}</span>
+      <div class="fr-bar-track"><div class="fr-bar-fill" style="width:${p}%;background:${col}"></div></div>
+      <span class="fr-bar-pct" style="color:${col}">${p}%</span>
+    </div>`;
+  }).join('');
+
+  /* ---- FINANCIAL IMPACT ---- */
+  document.getElementById('fi-lost').textContent  = d.lostSales;
+  document.getElementById('fi-lost').className    = 'cost-val ' + (d.lostSales === 'N/A' ? '' : 'red');
+  document.getElementById('fi-exp').textContent   = d.expCost;
+  document.getElementById('fi-exp').className     = 'cost-val ' + (d.expCost  === '$0' ? 'green' : 'amber');
+  document.getElementById('fi-ot').textContent    = d.otCost;
+  document.getElementById('fi-ot').className      = 'cost-val ' + (d.otCost   === '$0' ? 'green' : 'amber');
+  const nums = [d.lostSales, d.expCost, d.otCost]
+    .filter(x => x !== 'N/A' && x !== '$0')
+    .map(x => parseInt(x.replace(/[^0-9]/g, '')) || 0);
+  document.getElementById('fi-total').textContent = nums.length ? '~$' + nums.reduce((a,b)=>a+b,0)+'K' : 'N/A';
+
+  renderRisks();
+  drawNetwork();
+}
+
+function renderRisks() {
+  const d = networkData;
+  document.getElementById('riskFeed').innerHTML = d.risks.map((r, i) => `
+    <div class="risk-item${i === selectedRisk ? ' selected' : ''}" onclick="selectRisk(${i})">
+      <div class="ri-header">
+        <span class="sev-badge ${r.sev}">${r.sev.toUpperCase()}</span>
+        <span class="ri-title">${r.title}</span>
+      </div>
+      <div class="ri-lines">
+        <div class="ri-line"><span class="ri-line-lbl">Impact</span><span class="ri-line-val">${r.body}</span></div>
+        ${r.cause ? `<div class="ri-line"><span class="ri-line-lbl">Cause</span><span class="ri-line-val">${r.cause}</span></div>` : ''}
+        ${r.action ? `<div class="ri-line"><span class="ri-line-lbl">Action</span><span class="ri-line-val">${r.action}</span></div>` : ''}
+      </div>
+      <div class="ri-nodes">${r.nodes.slice(0, 5).map(n => `<span class="ri-node-tag">${n}</span>`).join('')}</div>
+    </div>`).join('');
+}
+
+function selectRisk(i) {
+  selectedRisk = (i === selectedRisk) ? null : i;
+  renderRisks();
+  drawNetwork();
+}
+
+/* ---- CANVAS NETWORK ---- */
+function getNodePos(node, W, H) {
+  const tierX = [0.08, 0.31, 0.62, 0.88];
+  const x = W * tierX[node.tier];
+  const spacing = H / (node.total + 1);
+  const y = spacing * (node.idx + 1);
+  return { x, y };
+}
+
+function drawNetwork() {
+  const canvas = document.getElementById('netCanvas');
+  const wrap   = document.getElementById('networkWrap');
+  const dpr    = window.devicePixelRatio || 1;
+  canvas.width  = wrap.clientWidth  * dpr;
+  canvas.height = wrap.clientHeight * dpr;
+  canvas.style.width  = wrap.clientWidth  + 'px';
+  canvas.style.height = wrap.clientHeight + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+
+  if (!networkData) return;
+  const d = networkData;
+
+  /* Positions */
+  nodePositions = {};
+  d.nodes.forEach(n => { nodePositions[n.id] = getNodePos(n, W, H); });
+
+  const highlight = (selectedRisk != null) ? new Set(d.risks[selectedRisk].highlight) : null;
+  const dim = highlight && highlight.size > 0;
+
+  /* Tier labels */
+  const tiers = ['Suppliers', 'Plants', 'Distribution', 'Markets'];
+  const tierX = [0.08, 0.31, 0.62, 0.88];
+  ctx.font = '10px "Space Mono", monospace';
+  ctx.fillStyle = 'rgba(61,74,92,0.9)';
+  ctx.textAlign = 'center';
+  tiers.forEach((t, i) => ctx.fillText(t.toUpperCase(), W * tierX[i], 20));
+
+  /* Tier separators */
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 8]);
+  [0.195, 0.47, 0.75].forEach(tx => {
+    ctx.beginPath(); ctx.moveTo(W * tx, 0); ctx.lineTo(W * tx, H); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  /* Edges */
+  d.edges.forEach(e => {
+    const from = nodePositions[e.from], to = nodePositions[e.to];
+    if (!from || !to) return;
+    const isHL = highlight && (highlight.has(e.from) || highlight.has(e.to));
+    const alpha = dim ? (isHL ? 0.65 : 0.05) : (e.risk === 'high' || e.risk === 'critical' ? 0.45 : 0.18);
+    ctx.strokeStyle = (e.risk === 'high' || e.risk === 'critical')
+      ? `rgba(240,165,0,${alpha})` : `rgba(122,135,153,${alpha})`;
+    ctx.lineWidth = isHL ? 1.5 : 0.7;
+    const cpx = (from.x + to.x) / 2 + (to.y - from.y) * 0.12;
+    const cpy = (from.y + to.y) / 2 - (to.x - from.x) * 0.08;
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.quadraticCurveTo(cpx, cpy, to.x, to.y);
+    ctx.stroke();
+    if (isHL) {
+      const ang = Math.atan2(to.y - cpy, to.x - cpx);
+      ctx.fillStyle = `rgba(240,165,0,${alpha})`;
+      ctx.beginPath();
+      ctx.moveTo(to.x - 11 * Math.cos(ang - 0.3), to.y - 11 * Math.sin(ang - 0.3));
+      ctx.lineTo(to.x, to.y);
+      ctx.lineTo(to.x - 11 * Math.cos(ang + 0.3), to.y - 11 * Math.sin(ang + 0.3));
+      ctx.fill();
+    }
+  });
+
+  /* Recommendation overlays (teal rings) */
+  if (recs.length > 0) {
+    recs.forEach(rec => {
+      const node = d.nodes.find(n => n.label === rec.node);
+      if (!node) return;
+      const pos = nodePositions[node.id];
+      if (!pos) return;
+      ctx.strokeStyle = 'rgba(0,201,167,0.55)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, 30, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      if (rec.fill_rate_delta) {
+        ctx.fillStyle = 'rgba(0,201,167,0.9)';
+        ctx.font = 'bold 10px "Space Mono"';
+        ctx.textAlign = 'center';
+        ctx.fillText(rec.fill_rate_delta, pos.x, pos.y + 44);
+      }
+    });
+  }
+
+  /* Nodes */
+  d.nodes.forEach(n => {
+    const pos  = nodePositions[n.id];
+    const isHL = highlight && highlight.has(n.id);
+    const isDim= dim && !isHL;
+    const rec  = recs.find(r => r.node === n.label);
+    const alpha= isDim ? 0.22 : 1;
+    const r    = (mode === 'financial' && n.type === 'PLANT') ? 22 : 18;
+
+    let fill, stroke;
+    if (rec)                    { fill = 'rgba(0,201,167,0.15)'; stroke = 'rgba(0,201,167,0.8)'; }
+    else if (n.risk==='critical'){ fill = 'rgba(240,82,82,0.15)'; stroke = 'rgba(240,82,82,0.85)'; }
+    else if (n.risk==='high')    { fill = 'rgba(240,165,0,0.12)'; stroke = 'rgba(240,165,0,0.75)'; }
+    else if (n.risk==='medium')  { fill = 'rgba(74,158,255,0.1)'; stroke = 'rgba(74,158,255,0.6)'; }
+    else                         { fill = 'rgba(26,33,51,0.8)';   stroke = 'rgba(61,74,92,0.5)'; }
+
+    ctx.globalAlpha = alpha;
+
+    if (n.risk === 'critical' && !isDim) { ctx.shadowColor = 'rgba(240,82,82,0.5)'; ctx.shadowBlur = 18; }
+    else if (isHL)                       { ctx.shadowColor = 'rgba(240,165,0,0.35)'; ctx.shadowBlur = 14; }
+    else                                 { ctx.shadowBlur = 0; }
+
+    ctx.fillStyle = fill;
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = stroke; ctx.lineWidth = isHL ? 2 : 1;
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    /* Inner ring */
+    const typeColor = { SUPPLIER: 'rgba(167,139,250,0.5)', PLANT: 'rgba(74,158,255,0.5)', DC: 'rgba(0,201,167,0.5)', MARKET: 'rgba(52,211,153,0.4)' };
+    ctx.strokeStyle = typeColor[n.type] || 'transparent';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, r - 6, 0, Math.PI * 2); ctx.stroke();
+
+    /* Type letter */
+    const typeChar = { SUPPLIER: 'S', PLANT: 'P', DC: 'D', MARKET: 'M' };
+    ctx.fillStyle = isDim ? 'rgba(122,135,153,0.4)' : 'rgba(200,210,230,0.9)';
+    ctx.font = 'bold 10px "Space Mono"';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(typeChar[n.type] || '?', pos.x, pos.y);
+
+    /* Node label */
+    ctx.font = '500 11px "DM Sans", sans-serif';
+    ctx.fillStyle = isDim ? 'rgba(122,135,153,0.5)' : 'rgba(221,227,239,0.85)';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const label = n.label.length > 14 ? n.label.slice(0, 13) + '…' : n.label;
+    ctx.fillText(label, pos.x, pos.y + r + 4);
+
+    ctx.globalAlpha = 1;
+
+    /* Financial mode: cost bubble */
+    if (mode === 'financial' && n.type === 'PLANT') {
+      const so = n.details.stockouts || 0;
+      if (so > 0 && networkData.totalCM > 0) {
+        const lossK = Math.round(so * 8 * networkData.totalCM / 1000);
+        if (lossK > 0) {
+          ctx.fillStyle = 'rgba(240,82,82,0.9)';
+          ctx.beginPath(); ctx.arc(pos.x + 18, pos.y - 18, 14, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 9px "Space Mono"';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('$' + lossK + 'K', pos.x + 18, pos.y - 18);
+        }
+      }
+    }
+  });
+}
+
+/* ---- CANVAS INTERACTIONS ---- */
+const canvas = document.getElementById('netCanvas');
+
+canvas.addEventListener('mousemove', e => {
+  if (!networkData) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  let hovered = null;
+  for (const n of networkData.nodes) {
+    const pos = nodePositions[n.id];
+    if (!pos) continue;
+    if (Math.sqrt((mx - pos.x) ** 2 + (my - pos.y) ** 2) < 22) { hovered = n; break; }
+  }
+  const tt = document.getElementById('tooltip');
+  if (hovered) {
+    const det = hovered.details;
+    let html = `<div class="tt-title">${hovered.label}</div><div class="tt-type">${hovered.type}</div><div class="tt-divider"></div>`;
+    if (hovered.type === 'PLANT') {
+      html += `<div class="tt-row ${det.stockouts > 0 ? 'red' : 'green'}"><span>Stockouts</span><span>${det.stockouts}</span></div>`;
+      html += `<div class="tt-row ${det.overloads > 0 ? 'amber' : 'green'}"><span>Capacity overloads</span><span>${det.overloads} wks</span></div>`;
+      html += `<div class="tt-row ${det.latePOs > 0 ? 'amber' : 'green'}"><span>Late POs</span><span>${det.latePOs}</span></div>`;
+      if (det.fillRate) html += `<div class="tt-row"><span>Fill rate est.</span><span>${det.fillRate}%</span></div>`;
+      if (det.inv)      html += `<div class="tt-row"><span>On-hand total</span><span>${det.inv.toLocaleString()}</span></div>`;
+    } else if (hovered.type === 'SUPPLIER') {
+      html += `<div class="tt-row ${det.latePOs > 0 ? 'amber' : 'green'}"><span>Late POs</span><span>${det.latePOs}</span></div>`;
+      html += `<div class="tt-row ${det.events > 0 ? 'red' : 'green'}"><span>Disruption signals</span><span>${det.events}</span></div>`;
+    } else if (hovered.type === 'DC') {
+      html += `<div class="tt-row"><span>Transfer lanes</span><span>${det.transfers || 0}</span></div>`;
+    }
+    const rec  = recs.find(r => r.node === hovered.label);
+    const risk = networkData.risks.find(r => r.highlight.includes(hovered.id));
+    if (rec)  html += `<div class="tt-divider"></div><div class="tt-risk ok">AI Rec: ${rec.action} · ${rec.fill_rate_delta}</div>`;
+    else if (risk) html += `<div class="tt-divider"></div><div class="tt-risk ${risk.sev}">${risk.sev.toUpperCase()}: ${risk.title}</div>`;
+    tt.innerHTML = html;
+    let tx = mx + 16, ty = my + 8;
+    if (tx + 270 > canvas.clientWidth) tx = mx - 270;
+    if (ty + 200 > canvas.clientHeight) ty = my - 200;
+    tt.style.left = tx + 'px'; tt.style.top = ty + 'px';
+    tt.classList.add('show');
+    canvas.style.cursor = 'pointer';
+  } else {
+    tt.classList.remove('show');
+    canvas.style.cursor = 'default';
+  }
+});
+
+canvas.addEventListener('click', e => {
+  if (!networkData) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  for (const n of networkData.nodes) {
+    const pos = nodePositions[n.id];
+    if (!pos) continue;
+    if (Math.sqrt((mx - pos.x) ** 2 + (my - pos.y) ** 2) < 22) {
+      const riskIdx = networkData.risks.findIndex(r => r.highlight.includes(n.id));
+      if (riskIdx >= 0) selectRisk(riskIdx);
+      return;
+    }
+  }
+});
+
+canvas.addEventListener('mouseleave', () => document.getElementById('tooltip').classList.remove('show'));
+window.addEventListener('resize', () => { if (networkData) drawNetwork(); });
+
+/* ---- GPT JSON IMPORT ---- */
+function importGPTRecs() {
+  const raw = document.getElementById('gptJsonInput').value.trim();
+  if (!raw) { alert('Paste the JSON output from ChatGPT first.'); return; }
+  try {
+    const parsed = JSON.parse(raw);
+    recs = parsed.recommendations || parsed.actions || parsed || [];
+    if (!Array.isArray(recs)) recs = Object.values(recs);
+    document.getElementById('gptJsonInput').value = '';
+    // Render rec cards
+    document.getElementById('recCards').innerHTML = recs.map(r => `
+      <div class="rec-card">
+        <div class="rec-card-node">${r.node || '—'}</div>
+        <div class="rec-card-action">${r.action || '—'}</div>
+        <div class="rec-card-metrics">
+          ${r.fill_rate_delta ? `<span class="rec-metric fr">${r.fill_rate_delta} fill rate</span>` : ''}
+          ${r.cost_delta ? `<span class="rec-metric cost">${r.cost_delta}</span>` : ''}
+        </div>
+      </div>`).join('');
+    setMode('financial');
+    drawNetwork();
+  } catch (err) {
+    alert('Invalid JSON — please paste the exact JSON block from ChatGPT.\n\nExpected format:\n{"recommendations":[{"node":"Plant-A","action":"Expedite PO_102","fill_rate_delta":"+4.2%","cost_delta":"$8,400"}]}');
+  }
+}
+
+/* ---- DEMO DATA ---- */
+function loadDemo() {
+  networkData = {
+    nodes: [
+      { id:'sup_SupA', label:'Supplier-A', type:'SUPPLIER', risk:'critical', tier:0, idx:0, total:3, details:{ latePOs:3, events:1 } },
+      { id:'sup_SupB', label:'Supplier-B', type:'SUPPLIER', risk:'high',     tier:0, idx:1, total:3, details:{ latePOs:1, events:0 } },
+      { id:'sup_SupC', label:'Supplier-C', type:'SUPPLIER', risk:'ok',       tier:0, idx:2, total:3, details:{ latePOs:0, events:0 } },
+      { id:'plt_PlantA', label:'Plant-A', type:'PLANT', risk:'critical', tier:1, idx:0, total:3, details:{ stockouts:4, overloads:3, latePOs:3, fillRate:68, inv:12000 } },
+      { id:'plt_PlantB', label:'Plant-B', type:'PLANT', risk:'high',     tier:1, idx:1, total:3, details:{ stockouts:1, overloads:1, latePOs:1, fillRate:85, inv:28000 } },
+      { id:'plt_PlantC', label:'Plant-C', type:'PLANT', risk:'ok',       tier:1, idx:2, total:3, details:{ stockouts:0, overloads:0, latePOs:0, fillRate:96, inv:45000 } },
+      { id:'dc_DC1', label:'DC-North', type:'DC', risk:'ok', tier:2, idx:0, total:2, details:{ transfers:4 } },
+      { id:'dc_DC2', label:'DC-South', type:'DC', risk:'ok', tier:2, idx:1, total:2, details:{ transfers:3 } },
+      { id:'mkt_Dom', label:'Market-Domestic', type:'MARKET', risk:'ok', tier:3, idx:0, total:2, details:{} },
+      { id:'mkt_Exp', label:'Market-Export',   type:'MARKET', risk:'ok', tier:3, idx:1, total:2, details:{} }
+    ],
+    edges: [
+      { from:'sup_SupA', to:'plt_PlantA', risk:'critical' },
+      { from:'sup_SupA', to:'plt_PlantB', risk:'high'     },
+      { from:'sup_SupB', to:'plt_PlantA', risk:'high'     },
+      { from:'sup_SupB', to:'plt_PlantC', risk:'ok'       },
+      { from:'sup_SupC', to:'plt_PlantB', risk:'ok'       },
+      { from:'sup_SupC', to:'plt_PlantC', risk:'ok'       },
+      { from:'plt_PlantA', to:'dc_DC1', risk:'high' },
+      { from:'plt_PlantA', to:'dc_DC2', risk:'high' },
+      { from:'plt_PlantB', to:'dc_DC1', risk:'ok'   },
+      { from:'plt_PlantC', to:'dc_DC2', risk:'ok'   },
+      { from:'dc_DC1', to:'mkt_Dom', risk:'ok' },
+      { from:'dc_DC1', to:'mkt_Exp', risk:'ok' },
+      { from:'dc_DC2', to:'mkt_Dom', risk:'ok' },
+      { from:'dc_DC2', to:'mkt_Exp', risk:'ok' }
+    ],
+    risks: [
+      { sev:'critical', title:'Plant-A material stockout — 4 SKU nodes',
+        body:'FG-Plant fill rate drops to 68% in W+4.',
+        cause:'Supplier-A delay of 11 days on PO_102. No alternate inbound before W+3.',
+        action:'Expedite PO_102 or reposition 600 units from DC-North.',
+        nodes:['Plant-A','Supplier-A'], highlight:['plt_PlantA','sup_SupA'] },
+      { sev:'high', title:'3 late inbound POs from Supplier-A',
+        body:'PO_102, PO_108, PO_115 delayed beyond 7-day threshold.',
+        cause:'At-risk supply of RM-004, RM-007 affecting Plant-A and Plant-B.',
+        action:'Check expedite allowance on PO_108. Flag alternate supplier.',
+        nodes:['Supplier-A','Plant-A','Plant-B'], highlight:['sup_SupA','plt_PlantA','plt_PlantB'] },
+      { sev:'medium', title:'Capacity overload — Plant-A, 3 weeks',
+        body:'Workcenter WC-01 at 128% utilisation in W+2–W+4.',
+        cause:'Production order backlog not cleared from prior week slip.',
+        action:'Overtime feasibility: 15% headroom available. Defer non-critical orders.',
+        nodes:['Plant-A'], highlight:['plt_PlantA'] }
+    ],
+    snapId:'2026-W12', frPlant:79, frNet:76,
+    totalStockouts:4, latePOCount:3,
+    lostSales:'$48K', expCost:'$10K', otCost:'$6K',
+    totalCM:400, overloadByPlant:{ 'Plant-A': 3 }
+  };
+  recs = [];
+  selectedRisk = null;
+  document.getElementById('uploadOverlay').style.display = 'none';
+  document.getElementById('legend').style.display = 'flex';
+  document.getElementById('liveDot').style.opacity = '1';
+  document.getElementById('snapPill').textContent = networkData.snapId;
+  renderDashboard();
+}
+</script>
+</body>
+</html>
