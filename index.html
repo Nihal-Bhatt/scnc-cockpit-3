@@ -733,7 +733,7 @@ button{cursor:pointer;}
       <div class="grid ai-layout">
         <div class="glass panel">
           <div class="panel-title"><div><div class="kicker">Prompt helper</div><div style="font-size:16px;font-weight:700;margin-top:4px;">SCNC agent handoff</div></div></div>
-          <div class="prompt-box" id="promptBox">Use your SCNC agent to diagnose risks, then return JSON with fields like node, action, fill_rate_delta, cost_delta, confidence, from_node, and to_node. Matching node labels should follow the workbook entity names.</div>
+          <div class="prompt-box" id="promptBox">Use your SCNC agent to diagnose risks, then return JSON with fields like node, action, fill_rate_delta, cost_delta, confidence, from_node, and to_node. Matching node labels should follow the workbook entity names. Use straight ASCII quotes only (not curly “smart” quotes).</div>
           <div class="split-row" style="margin-top:12px;">
             <button class="primary-btn" id="aiOpenBtn">Open SCNC Agent in ChatGPT →</button>
             <button class="ghost-btn" id="copyPromptBtn">Copy prompt</button>
@@ -815,6 +815,15 @@ function normalizeText(v, fallback=''){
 }
 function normalizeKey(v){
   return normalizeText(v).toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+/** Normalize ChatGPT / Word paste artifacts so JSON.parse can succeed. */
+function sanitizeJsonInput(raw){
+  return String(raw)
+    .replace(/\uFEFF/g, '')
+    .replace(/[\u200B-\u200D\u2060]/g, '')
+    .replace(/[\u2018\u2019\u201A\u2032\u0060]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u2033\u00AB\u00BB\uFF02]/g, '"')
+    .replace(/,(\s*[}\]])/g, '$1');
 }
 function clamp(v, min, max){
   return Math.min(max, Math.max(min, v));
@@ -2327,7 +2336,7 @@ function loadDemo(){
 }
 
 function parseAiJson(){
-  const raw = $('#aiJsonInput').value.trim();
+  const raw = sanitizeJsonInput($('#aiJsonInput').value.trim());
   if(!raw){
     alert('Paste a recommendation JSON payload first.');
     return;
@@ -2351,12 +2360,15 @@ function parseAiJson(){
     renderAll();
     switchTab('ai');
   }catch(err){
-    alert('Invalid JSON. Expected {"recommendations":[{"node":"PLANT_A","action":"Expedite PO_0004","fill_rate_delta":"+2.8%","cost_delta":"$7,600"}]}');
+    const hint = /[\u201C\u201D\u2018\u2019]/.test($('#aiJsonInput').value)
+      ? ' Curly “smart” quotes were detected — re-copy from ChatGPT or use Copy prompt below.'
+      : '';
+    alert('Invalid JSON.' + hint + ' Expected {"recommendations":[{"node":"PLANT_A","action":"Expedite PO_0004","fill_rate_delta":"+2.8%","cost_delta":"$7,600"}]}');
   }
 }
 
 function copyPrompt(){
-  const text = `Use the uploaded SCNC workbook and return JSON only in this structure:
+  const text = `Use the uploaded SCNC workbook and return JSON only in this structure. Use straight double quotes (") not curly quotes:
 {"recommendations":[
   {"node":"PLANT_A","action":"Expedite PO_0004 from SUP_06","fill_rate_delta":"+2.8%","cost_delta":"$7,600","confidence":"0.82","from_node":"SUP_06","to_node":"PLANT_A"},
   {"node":"DC_1","action":"Reposition 400 units from PLANT_B","fill_rate_delta":"+1.6%","cost_delta":"$2,200","confidence":"0.74","from_node":"PLANT_B","to_node":"DC_1"}
