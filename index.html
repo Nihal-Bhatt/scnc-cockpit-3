@@ -76,14 +76,29 @@ button{cursor:pointer;}
 .topbar-center{grid-area:center; justify-content:flex-start; overflow-x:auto; padding-bottom:2px; scrollbar-width:none;}
 .topbar-center::-webkit-scrollbar{display:none;}
 .topbar-right{grid-area:right; justify-content:flex-end; flex-wrap:wrap;}
-.logo{
+.brand{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:5px;
+  flex-shrink:0;
+}
+.brand-logo{
+  width:148px;
+  max-width:100%;
+  height:auto;
+  display:block;
+  object-fit:contain;
+}
+.brand-title{
   font-family:var(--mono);
-  font-size:12px;
+  font-size:11px;
   font-weight:700;
-  letter-spacing:1px;
+  letter-spacing:.9px;
+  line-height:1.2;
   white-space:nowrap;
 }
-.logo span{color:var(--amber);}
+.brand-title span{color:var(--amber);}
 .pill{
   display:inline-flex;
   align-items:center;
@@ -492,7 +507,10 @@ button{cursor:pointer;}
 <div class="app">
   <header class="topbar">
     <div class="topbar-left">
-      <div class="logo">SC<span>NC</span> NERVE CENTER</div>
+      <div class="brand">
+        <img class="brand-logo" src="assets/mckinsey-logo.png" alt="McKinsey &amp; Company" width="148" height="45" />
+        <div class="brand-title">SC<span>NC</span> Nerve Center</div>
+      </div>
       <div class="pill"><span class="live-dot" style="opacity:.35"></span><strong id="snapPill">NO DATA</strong></div>
       <div class="pill live" id="statusPill"><span class="live-dot"></span><span id="statusText">Awaiting workbook</span></div>
     </div>
